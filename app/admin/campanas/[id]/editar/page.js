@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { apiCall } from "@/lib/api";
+import QRChupete from "@/components/QRChupete";
 
 const MapLocationPicker = dynamic(() => import("@/components/MapLocationPicker"), { ssr: false });
 
@@ -241,33 +242,41 @@ export default function EditarCampanaPage() {
       </form>
 
       <div className="bg-white p-6 rounded-xl border border-stone-200">
-        <h2 className="text-lg font-bold text-stone-800 mb-4">Links trackables</h2>
-        <ul className="space-y-3 mb-6">
-          {links.map((link) => (
-            <li key={link.id} className="flex flex-wrap items-start justify-between gap-2 p-3 bg-stone-50 rounded-lg border border-stone-200">
-              <div className="min-w-0 flex-1">
-                <p className="font-medium text-stone-800">{link.name}</p>
-                <p className="text-sm text-stone-600 truncate">{link.url}</p>
-                <p className="text-xs text-stone-500 mt-1">Clicks: {link.total_clicks ?? 0}</p>
-                {trackingUrl(link) && (
-                  <div className="flex items-center gap-2 mt-2">
-                    <input readOnly value={trackingUrl(link)} className="flex-1 min-w-0 text-xs px-2 py-1 border rounded bg-white" />
-                    <button
-                      type="button"
-                      onClick={() => navigator.clipboard.writeText(trackingUrl(link))}
-                      className="text-blue-600 hover:underline text-xs"
-                    >
-                      Copiar
-                    </button>
-                  </div>
-                )}
-              </div>
-              <div className="flex gap-2">
-                <button type="button" onClick={() => startEditLink(link)} className="px-2 py-1 text-sm text-blue-600 hover:underline">Editar</button>
-                <button type="button" onClick={() => deleteLink(link.id)} className="px-2 py-1 text-sm text-red-600 hover:underline">Eliminar</button>
-              </div>
-            </li>
-          ))}
+        <h2 className="text-lg font-bold text-stone-800 mb-2">Links trackables</h2>
+        <p className="text-sm text-stone-600 mb-4">Cada link se genera a partir de la URL que quieras trackear. Al escanear el QR (o abrir el link) se registra el click y se redirige a esa URL.</p>
+        <ul className="space-y-6 mb-6">
+          {links.map((link) => {
+            const url = trackingUrl(link);
+            const chupeteNum = link.location_id ?? link.locationId;
+            return (
+              <li key={link.id} className="flex flex-wrap items-start gap-4 p-4 bg-stone-50 rounded-xl border border-stone-200">
+                <div className="flex-shrink-0">
+                  {url ? <QRChupete url={url} chupeteNumber={chupeteNum} size={160} /> : <div className="w-40 h-40 rounded-lg bg-stone-200 flex items-center justify-center text-stone-500 text-sm">Sin short code</div>}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-stone-800">{link.name}</p>
+                  <p className="text-sm text-stone-600 truncate">Destino: {link.url}</p>
+                  <p className="text-xs text-stone-500 mt-1">Clicks: {link.total_clicks ?? 0}</p>
+                  {url && (
+                    <div className="flex items-center gap-2 mt-2 flex-wrap">
+                      <input readOnly value={url} className="flex-1 min-w-0 max-w-md text-xs px-2 py-1.5 border rounded-lg bg-white" />
+                      <button
+                        type="button"
+                        onClick={() => navigator.clipboard.writeText(url)}
+                        className="px-2 py-1 text-xs bg-orange-100 text-orange-800 rounded-lg hover:bg-orange-200"
+                      >
+                        Copiar link
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => startEditLink(link)} className="px-2 py-1 text-sm text-blue-600 hover:underline">Editar</button>
+                  <button type="button" onClick={() => deleteLink(link.id)} className="px-2 py-1 text-sm text-red-600 hover:underline">Eliminar</button>
+                </div>
+              </li>
+            );
+          })}
         </ul>
 
         {editingLink ? (

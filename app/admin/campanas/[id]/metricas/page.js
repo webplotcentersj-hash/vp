@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { apiCall } from "@/lib/api";
+import QRChupete from "@/components/QRChupete";
 
 export default function MetricasCampanaPage() {
   const params = useParams();
@@ -93,26 +94,33 @@ export default function MetricasCampanaPage() {
       {/* Gráfico: clicks por link trackable */}
       {links.length > 0 && (
         <div className="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden">
-          <h2 className="p-4 font-bold text-stone-800 border-b border-stone-100">Clicks por link trackable</h2>
-          <div className="p-4 space-y-4">
+          <h2 className="p-4 font-bold text-stone-800 border-b border-stone-100">Clicks por link trackable + QR</h2>
+          <div className="p-4 space-y-6">
             {links.map((l) => (
-              <div key={l.id}>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="font-medium text-stone-700 truncate pr-2">{l.name}</span>
-                  <span className="text-orange-600 font-semibold">{l.clicks ?? 0} clicks</span>
-                </div>
-                <div className="h-8 bg-stone-100 rounded-lg overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-orange-400 to-orange-500 rounded-lg transition-all"
-                    style={{ width: `${Math.min(100, ((l.clicks || 0) / maxLinkClicks) * 100)}%` }}
-                  />
-                </div>
+              <div key={l.id} className="flex flex-wrap items-start gap-4 p-3 bg-stone-50 rounded-lg">
                 {trackingUrl(l) && (
-                  <div className="flex items-center gap-2 mt-1.5">
-                    <input readOnly value={trackingUrl(l)} className="flex-1 min-w-0 text-xs px-2 py-1 border border-stone-200 rounded bg-stone-50" />
-                    <button type="button" onClick={() => navigator.clipboard.writeText(trackingUrl(l))} className="text-xs text-blue-600 hover:underline">Copiar</button>
+                  <div className="flex-shrink-0">
+                    <QRChupete url={trackingUrl(l)} chupeteNumber={l.location_id ?? l.locationId} size={120} />
                   </div>
                 )}
+                <div className="min-w-0 flex-1">
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="font-medium text-stone-700 truncate pr-2">{l.name}</span>
+                    <span className="text-orange-600 font-semibold">{l.clicks ?? 0} clicks</span>
+                  </div>
+                  <div className="h-8 bg-stone-100 rounded-lg overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-orange-400 to-orange-500 rounded-lg transition-all"
+                      style={{ width: `${Math.min(100, ((l.clicks || 0) / maxLinkClicks) * 100)}%` }}
+                    />
+                  </div>
+                  {trackingUrl(l) && (
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <input readOnly value={trackingUrl(l)} className="flex-1 min-w-0 text-xs px-2 py-1 border border-stone-200 rounded bg-white" />
+                      <button type="button" onClick={() => navigator.clipboard.writeText(trackingUrl(l))} className="text-xs text-blue-600 hover:underline">Copiar</button>
+                    </div>
+                  )}
+                </div>
               </div>
             ))}
           </div>

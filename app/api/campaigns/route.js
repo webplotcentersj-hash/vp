@@ -125,8 +125,14 @@ export async function POST(request) {
     conn?.rollback?.();
     conn?.release?.();
     console.error("Campaigns POST:", e);
+    const msg = e.message || String(e);
+    const hint = msg.includes("ECONNREFUSED") || msg.includes("Access denied")
+      ? " Revisa en Hostinger: Remote MySQL con Any Host y credenciales en Vercel."
+      : msg.includes("Unknown column")
+        ? " Ejecutá el SQL en sql/add_location_id_to_campaign_links.sql en tu base de campañas."
+        : "";
     return NextResponse.json(
-      { success: false, message: "Error al crear campaña. Revisa en Hostinger que Remote MySQL permita conexiones desde cualquier IP (Any Host)." },
+      { success: false, message: `Error al crear campaña.${hint}`, error: msg },
       { status: 500 }
     );
   }

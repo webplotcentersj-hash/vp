@@ -53,10 +53,16 @@ export default function NuevaCampanaPage() {
           linkName: (form.locationLinks[id]?.name || "").trim() || `Chupete N° ${id}`,
         })),
       });
-      if (res?.success) router.push("/admin/campanas");
-      else alert(res?.message || "Error");
+      if (res?.success) {
+        router.push(res.id ? `/admin/campanas/${res.id}/editar` : "/admin/campanas");
+      } else alert(res?.message || "Error");
     } catch (err) {
-      alert(err.message);
+      try {
+        const data = JSON.parse(err.message);
+        alert(data.message + (data.error ? "\n\nDetalle: " + data.error : ""));
+      } catch (_) {
+        alert(err.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -204,7 +210,7 @@ export default function NuevaCampanaPage() {
             <h2 className="text-lg font-bold text-stone-800 border-b border-stone-200 pb-2 mb-3">
               Ubicaciones elegidas ({form.locations.length})
             </h2>
-            <p className="text-stone-600 text-sm mb-3">Podés asignar un link trackable distinto a cada chupete. Si completás la URL, se generará un link corto para ese chupete.</p>
+            <p className="text-stone-600 text-sm mb-3">La app genera el <strong>link trackable</strong> a partir de la URL que quieras trackear: ingresá la URL destino y al crear la campaña se generará un link corto que redirige ahí y registra los clicks. En Editar campaña podrás ver el QR con el número de chupete para imprimir.</p>
             {form.locations.length === 0 ? (
               <p className="text-stone-500 text-sm">Tocá los marcadores en el mapa o marcá abajo.</p>
             ) : (
@@ -225,10 +231,10 @@ export default function NuevaCampanaPage() {
                           Quitar
                         </button>
                       </div>
-                      <p className="text-xs text-stone-600 mb-1.5">Link trackable para este chupete (opcional)</p>
+                      <p className="text-xs text-stone-600 mb-1.5">URL a trackear (la app generará un link corto y podrás obtener el QR en Editar)</p>
                       <input
                         type="url"
-                        placeholder="https://..."
+                        placeholder="https://ejemplo.com/landing..."
                         value={link.url}
                         onChange={(e) => setLocationLink(id, "url", e.target.value)}
                         className="w-full px-2.5 py-1.5 text-sm border border-stone-300 rounded-lg mb-1.5 focus:ring-2 focus:ring-orange-500"
