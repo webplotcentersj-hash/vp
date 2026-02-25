@@ -74,7 +74,7 @@ export default function UbicacionesPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-2xl font-bold text-stone-800">Ubicaciones</h1>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
           <input
             type="text"
             placeholder="Buscar..."
@@ -82,6 +82,27 @@ export default function UbicacionesPage() {
             onChange={(e) => setSearch(e.target.value)}
             className="px-3 py-2 border border-stone-200 rounded-lg"
           />
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                const res = await fetch("/api/locations/export-pdf");
+                if (!res.ok) throw new Error(await res.text());
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `ubicaciones-${new Date().toISOString().slice(0, 10)}.pdf`;
+                a.click();
+                URL.revokeObjectURL(url);
+              } catch (e) {
+                alert("Error al generar el PDF: " + (e.message || e));
+              }
+            }}
+            className="px-4 py-2 bg-stone-700 text-white rounded-lg hover:bg-stone-800 inline-flex items-center gap-2"
+          >
+            Descargar PDF
+          </button>
           <button
             onClick={() => {
               setForm({ address: "", reference: "", measurements: "", lat: "", lng: "" });
