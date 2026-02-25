@@ -163,46 +163,46 @@ export default function EditarCampanaPage() {
     return "";
   }
 
-  if (loadingData) return <div className="py-12 text-stone-500">Cargando...</div>;
+  if (loadingData) return <div className="py-12 text-black">Cargando...</div>;
   if (!campaign) return <div className="text-red-600">Campaña no encontrada.</div>;
 
   return (
     <div className="max-w-5xl space-y-8">
       <div className="flex items-center gap-4">
         <Link href={`/admin/campanas/${id}`} className="text-orange-600 hover:underline font-medium">← Campaña</Link>
-        <h1 className="text-2xl font-bold text-stone-800">Editar campaña</h1>
+        <h1 className="text-2xl font-bold text-black">Editar campaña</h1>
       </div>
 
       <div className="rounded-2xl overflow-hidden shadow-lg border border-stone-200 bg-white p-3">
-        <p className="text-stone-600 text-sm mb-2">Ubicaciones de la base de datos (con coordenadas). Tocá los marcadores para sumar o quitar.</p>
+        <p className="text-black text-sm mb-2">Ubicaciones de la base de datos (con coordenadas). Tocá los marcadores para sumar o quitar.</p>
         <MapLocationPicker locations={locations} selectedIds={form.locations} onToggle={toggleLocation} height="320px" />
       </div>
 
       <form onSubmit={submitCampaign} className="space-y-4 bg-white p-6 rounded-xl border border-stone-200 shadow">
         <div>
-          <label className="block text-sm font-medium text-stone-700 mb-1">Nombre *</label>
+          <label className="block text-sm font-medium text-black mb-1">Nombre *</label>
           <input required value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} className="w-full px-3 py-2 border rounded-lg" />
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-stone-700 mb-1">Producto</label>
+            <label className="block text-sm font-medium text-black mb-1">Producto</label>
             <input value={form.product} onChange={(e) => setForm((f) => ({ ...f, product: e.target.value }))} className="w-full px-3 py-2 border rounded-lg" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-stone-700 mb-1">Público</label>
+            <label className="block text-sm font-medium text-black mb-1">Público</label>
             <input value={form.audience} onChange={(e) => setForm((f) => ({ ...f, audience: e.target.value }))} className="w-full px-3 py-2 border rounded-lg" />
           </div>
         </div>
         <div>
-          <label className="block text-sm font-medium text-stone-700 mb-1">Slogan</label>
+          <label className="block text-sm font-medium text-black mb-1">Slogan</label>
           <input value={form.slogan} onChange={(e) => setForm((f) => ({ ...f, slogan: e.target.value }))} className="w-full px-3 py-2 border rounded-lg" />
         </div>
         <div>
-          <label className="block text-sm font-medium text-stone-700 mb-1">Objetivo</label>
+          <label className="block text-sm font-medium text-black mb-1">Objetivo</label>
           <input value={form.objective} onChange={(e) => setForm((f) => ({ ...f, objective: e.target.value }))} className="w-full px-3 py-2 border rounded-lg" />
         </div>
         <div>
-          <label className="block text-sm font-medium text-stone-700 mb-1">Estado</label>
+          <label className="block text-sm font-medium text-black mb-1">Estado</label>
           <select value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))} className="w-full px-3 py-2 border rounded-lg">
             <option value="draft">Borrador</option>
             <option value="active">Activa</option>
@@ -212,20 +212,20 @@ export default function EditarCampanaPage() {
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-stone-700 mb-1">Fecha inicio *</label>
+            <label className="block text-sm font-medium text-black mb-1">Fecha inicio *</label>
             <input required type="date" value={form.startDate} onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))} className="w-full px-3 py-2 border rounded-lg" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-stone-700 mb-1">Fecha fin *</label>
+            <label className="block text-sm font-medium text-black mb-1">Fecha fin *</label>
             <input required type="date" value={form.endDate} onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))} className="w-full px-3 py-2 border rounded-lg" />
           </div>
         </div>
         <div>
-          <label className="block text-sm font-medium text-stone-700 mb-1">Presupuesto</label>
+          <label className="block text-sm font-medium text-black mb-1">Presupuesto</label>
           <input type="number" value={form.budget} onChange={(e) => setForm((f) => ({ ...f, budget: e.target.value }))} className="w-full px-3 py-2 border rounded-lg" />
         </div>
         <div>
-          <label className="block text-sm font-medium text-stone-700 mb-2">Ubicaciones (al menos una) – mapa arriba o lista</label>
+          <label className="block text-sm font-medium text-black mb-2">Ubicaciones (al menos una) – mapa arriba o lista</label>
           <div className="space-y-2 max-h-40 overflow-y-auto border rounded-lg p-3 bg-stone-50">
             {locations.map((l) => (
               <label key={l.id} className="flex items-center gap-2 cursor-pointer">
@@ -242,8 +242,8 @@ export default function EditarCampanaPage() {
       </form>
 
       <div className="bg-white p-6 rounded-xl border border-stone-200">
-        <h2 className="text-lg font-bold text-stone-800 mb-2">Links trackables</h2>
-        <p className="text-sm text-stone-600 mb-4">Cada link se genera a partir de la URL que quieras trackear. Al escanear el QR (o abrir el link) se registra el click y se redirige a esa URL.</p>
+        <h2 className="text-lg font-bold text-black mb-2">Links trackables</h2>
+        <p className="text-sm text-black mb-4">Cada link se genera a partir de la URL que quieras trackear. Al escanear el QR (o abrir el link) se registra el click y se redirige a esa URL.</p>
         <ul className="space-y-6 mb-6">
           {links.map((link) => {
             const url = trackingUrl(link);
@@ -251,12 +251,12 @@ export default function EditarCampanaPage() {
             return (
               <li key={link.id} className="flex flex-wrap items-start gap-4 p-4 bg-stone-50 rounded-xl border border-stone-200">
                 <div className="flex-shrink-0">
-                  {url ? <QRChupete url={url} chupeteNumber={chupeteNum} size={160} /> : <div className="w-40 h-40 rounded-lg bg-stone-200 flex items-center justify-center text-stone-500 text-sm">Sin short code</div>}
+                  {url ? <QRChupete url={url} chupeteNumber={chupeteNum} size={160} /> : <div className="w-40 h-40 rounded-lg bg-stone-200 flex items-center justify-center text-black text-sm">Sin short code</div>}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="font-medium text-stone-800">{link.name}</p>
-                  <p className="text-sm text-stone-600 truncate">Destino: {link.url}</p>
-                  <p className="text-xs text-stone-500 mt-1">Clicks: {link.total_clicks ?? 0}</p>
+                  <p className="font-medium text-black">{link.name}</p>
+                  <p className="text-sm text-black truncate">Destino: {link.url}</p>
+                  <p className="text-xs text-black mt-1">Clicks: {link.total_clicks ?? 0}</p>
                   {url && (
                     <div className="flex items-center gap-2 mt-2 flex-wrap">
                       <input readOnly value={url} className="flex-1 min-w-0 max-w-md text-xs px-2 py-1.5 border rounded-lg bg-white" />
@@ -281,7 +281,7 @@ export default function EditarCampanaPage() {
 
         {editingLink ? (
           <form onSubmit={saveLink} className="space-y-3 p-4 bg-amber-50 rounded-lg border border-amber-200">
-            <p className="text-sm font-medium text-stone-700">Editar link</p>
+            <p className="text-sm font-medium text-black">Editar link</p>
             <input placeholder="Nombre" value={linkForm.name} onChange={(e) => setLinkForm((f) => ({ ...f, name: e.target.value }))} className="w-full px-3 py-2 border rounded-lg" required />
             <input placeholder="URL destino" value={linkForm.url} onChange={(e) => setLinkForm((f) => ({ ...f, url: e.target.value }))} className="w-full px-3 py-2 border rounded-lg" required />
             <input placeholder="Notas" value={linkForm.notes} onChange={(e) => setLinkForm((f) => ({ ...f, notes: e.target.value }))} className="w-full px-3 py-2 border rounded-lg" />
@@ -292,7 +292,7 @@ export default function EditarCampanaPage() {
           </form>
         ) : (
           <form onSubmit={addLink} className="space-y-3 p-4 bg-stone-50 rounded-lg border border-stone-200">
-            <p className="text-sm font-medium text-stone-700">Nuevo link trackable</p>
+            <p className="text-sm font-medium text-black">Nuevo link trackable</p>
             <input placeholder="Nombre *" value={linkForm.name} onChange={(e) => setLinkForm((f) => ({ ...f, name: e.target.value }))} className="w-full px-3 py-2 border rounded-lg" />
             <input placeholder="URL destino *" value={linkForm.url} onChange={(e) => setLinkForm((f) => ({ ...f, url: e.target.value }))} className="w-full px-3 py-2 border rounded-lg" />
             <input placeholder="Notas" value={linkForm.notes} onChange={(e) => setLinkForm((f) => ({ ...f, notes: e.target.value }))} className="w-full px-3 py-2 border rounded-lg" />

@@ -21,14 +21,14 @@ export default function CampanaDetailPage() {
       .finally(() => setLoading(false));
   }, [params.id]);
 
-  if (loading) return <div className="py-12 text-stone-500">Cargando...</div>;
+  if (loading) return <div className="py-12 text-black">Cargando...</div>;
   if (!campaign) return <div className="text-red-600">Campaña no encontrada.</div>;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
         <Link href="/admin/campanas" className="text-orange-600 hover:underline">← Campañas</Link>
-        <h1 className="text-2xl font-bold text-stone-800">{campaign.name}</h1>
+        <h1 className="text-2xl font-bold text-black">{campaign.name}</h1>
       </div>
       <div className="bg-white rounded-xl border border-stone-200 p-6 space-y-4">
         <p><strong>Producto:</strong> {campaign.product || "—"}</p>

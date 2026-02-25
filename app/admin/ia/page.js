@@ -35,11 +35,11 @@ export default function IAPage() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-8rem)]">
-      <h1 className="text-2xl font-bold text-stone-800 mb-4">Asistente IA</h1>
+      <h1 className="text-2xl font-bold text-black mb-4">Asistente IA</h1>
       <div className="flex-1 bg-white rounded-xl border border-stone-200 flex flex-col overflow-hidden">
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {messages.length === 0 && (
-            <p className="text-stone-500 text-center py-8">Escribe un mensaje para hablar con el asistente.</p>
+            <p className="text-black text-center py-8">Escribe un mensaje para hablar con el asistente.</p>
           )}
           {messages.map((msg, i) => (
             <div
@@ -47,7 +47,7 @@ export default function IAPage() {
               className={`max-w-[85%] rounded-2xl px-4 py-3 ${
                 msg.role === "user"
                   ? "ml-auto bg-orange-600 text-white rounded-br-md"
-                  : "bg-stone-100 text-stone-800 rounded-bl-md"
+                  : "bg-stone-100 text-black rounded-bl-md"
               }`}
             >
               <p className="whitespace-pre-wrap text-sm">{msg.text}</p>
@@ -55,7 +55,7 @@ export default function IAPage() {
           ))}
           {loading && (
             <div className="bg-stone-100 rounded-2xl rounded-bl-md px-4 py-3 max-w-[85%]">
-              <p className="text-stone-500 text-sm">Pensando...</p>
+              <p className="text-black text-sm">Pensando...</p>
             </div>
           )}
           <div ref={bottomRef} />

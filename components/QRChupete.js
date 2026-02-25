@@ -45,7 +45,7 @@ export default function QRChupete({ url, chupeteNumber, size = 160 }) {
     <div className="inline-flex flex-col items-center">
       <img src={dataUrl} alt={`QR Chupete ${chupeteNumber ?? ""}`} width={size} height={size} className="rounded-lg border-2 border-stone-200 bg-white" />
       {chupeteNumber != null && (
-        <span className="mt-1.5 text-sm font-bold text-stone-700">Chupete N° {chupeteNumber}</span>
+        <span className="mt-1.5 text-sm font-bold text-black">Chupete N° {chupeteNumber}</span>
       )}
       <button
         type="button"

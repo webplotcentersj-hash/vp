@@ -29,7 +29,7 @@ export default function MetricasCampanaPage() {
       .finally(() => setLoading(false));
   }, [params.id]);
 
-  if (loading) return <div className="py-12 text-stone-500">Cargando...</div>;
+  if (loading) return <div className="py-12 text-black">Cargando...</div>;
 
   const totals = data?.totals || {};
   const daily = data?.daily || [];
@@ -66,7 +66,7 @@ export default function MetricasCampanaPage() {
     <div className="space-y-8 max-w-6xl">
       <div className="flex items-center gap-4">
         <Link href={`/admin/campanas/${params.id}`} className="text-orange-600 hover:underline font-medium">← Volver a campaña</Link>
-        <h1 className="text-2xl font-bold text-stone-800">Métricas de campaña</h1>
+        <h1 className="text-2xl font-bold text-black">Métricas de campaña</h1>
       </div>
 
       {/* Resumen KPIs – datos reales de clicks desde links trackables */}
@@ -75,8 +75,8 @@ export default function MetricasCampanaPage() {
           <div className="absolute top-0 right-0 w-20 h-20 bg-stone-200/30 rounded-bl-full" />
           <div className="relative flex items-start justify-between">
             <div>
-              <p className="text-stone-500 text-sm font-medium uppercase tracking-wide">Impresiones</p>
-              <p className="text-3xl font-extrabold text-stone-800 mt-1">{(totals.total_impressions || 0).toLocaleString()}</p>
+              <p className="text-black text-sm font-medium uppercase tracking-wide">Impresiones</p>
+              <p className="text-3xl font-extrabold text-black mt-1">{(totals.total_impressions || 0).toLocaleString()}</p>
             </div>
             <span className="text-3xl opacity-60" aria-hidden>👁</span>
           </div>
@@ -117,7 +117,7 @@ export default function MetricasCampanaPage() {
       {/* Mapa: ubicaciones de la campaña con clicks */}
       {campaignLocations.length > 0 && (
         <div className="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden">
-          <h2 className="p-4 font-bold text-stone-800 border-b border-stone-100">Mapa – chupetes de la campaña (número y clicks)</h2>
+          <h2 className="p-4 font-bold text-black border-b border-stone-100">Mapa – chupetes de la campaña (número y clicks)</h2>
           <div className="p-4">
             <CampaignMetricsMap locations={campaignLocations} locationClicks={locationClicks} height="340px" />
           </div>
@@ -127,7 +127,7 @@ export default function MetricasCampanaPage() {
       {/* Clicks por día (desde links trackables) */}
       {clicksByDate.length > 0 && (
         <div className="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden">
-          <h2 className="p-4 font-bold text-stone-800 border-b border-stone-100">Clicks por día (links trackables, últimos 30 días)</h2>
+          <h2 className="p-4 font-bold text-black border-b border-stone-100">Clicks por día (links trackables, últimos 30 días)</h2>
           <div className="p-4 overflow-x-auto">
             <div className="flex items-end gap-1.5 min-w-max" style={{ height: 200 }}>
               {clicksByDate.map((d, i) => (
@@ -139,7 +139,7 @@ export default function MetricasCampanaPage() {
                       title={`${d.date}: ${d.clicks || 0} clicks`}
                     />
                   </div>
-                  <span className="text-[10px] text-stone-500 mt-1">{d.date ? new Date(d.date).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" }) : ""}</span>
+                  <span className="text-[10px] text-black mt-1">{d.date ? new Date(d.date).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" }) : ""}</span>
                 </div>
               ))}
             </div>
@@ -150,15 +150,15 @@ export default function MetricasCampanaPage() {
       {/* De dónde vino el disparo: referrers */}
       {referrerCounts.length > 0 && (
         <div className="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden">
-          <h2 className="p-4 font-bold text-stone-800 border-b border-stone-100">De dónde vino el disparo (origen de los clicks)</h2>
-          <p className="px-4 pt-2 text-sm text-stone-600">Referrer: página o app desde la que se hizo click en el link trackable.</p>
+          <h2 className="p-4 font-bold text-black border-b border-stone-100">De dónde vino el disparo (origen de los clicks)</h2>
+          <p className="px-4 pt-2 text-sm text-black">Referrer: página o app desde la que se hizo click en el link trackable.</p>
           <div className="p-4 space-y-3">
             {referrerCounts.map((r) => {
               const pct = totalReferrers > 0 ? ((r.total / totalReferrers) * 100).toFixed(0) : 0;
               return (
                 <div key={r.referrer}>
                   <div className="flex justify-between text-sm mb-1">
-                    <span className="truncate pr-2 text-stone-700" title={r.referrer}>{r.referrer === "(directo)" ? "Directo (sin referrer)" : r.referrer}</span>
+                    <span className="truncate pr-2 text-black" title={r.referrer}>{r.referrer === "(directo)" ? "Directo (sin referrer)" : r.referrer}</span>
                     <span className="font-semibold text-orange-600">{r.total} ({pct}%)</span>
                   </div>
                   <div className="h-6 bg-stone-100 rounded-lg overflow-hidden">
@@ -174,10 +174,10 @@ export default function MetricasCampanaPage() {
       {/* Tabla: últimos clicks (origen detallado) */}
       {recentClicks.length > 0 && (
         <div className="bg-white rounded-xl border border-stone-200 overflow-hidden">
-          <h2 className="p-4 font-bold text-stone-800 border-b">Últimos clicks – detalle (origen del disparo)</h2>
+          <h2 className="p-4 font-bold text-black border-b">Últimos clicks – detalle (origen del disparo)</h2>
           <div className="overflow-x-auto max-h-80 overflow-y-auto">
             <table className="w-full text-left text-sm">
-              <thead className="bg-stone-50 text-stone-500 sticky top-0">
+              <thead className="bg-stone-50 text-black sticky top-0">
                 <tr>
                   <th className="p-2">Fecha</th>
                   <th className="p-2">Link / Chupete</th>
@@ -188,10 +188,10 @@ export default function MetricasCampanaPage() {
               <tbody>
                 {recentClicks.map((c) => (
                   <tr key={c.id} className="border-t border-stone-100">
-                    <td className="p-2 text-stone-600">{c.clicked_at ? new Date(c.clicked_at).toLocaleString("es-AR") : "—"}</td>
+                    <td className="p-2 text-black">{c.clicked_at ? new Date(c.clicked_at).toLocaleString("es-AR") : "—"}</td>
                     <td className="p-2 font-medium">{c.link_name || `Link ${c.link_id}`}{c.location_id ? ` (Chupete N° ${c.location_id})` : ""}</td>
                     <td className="p-2 truncate max-w-xs" title={c.referrer || ""}>{c.referrer && c.referrer.trim() ? c.referrer : "(directo)"}</td>
-                    <td className="p-2 text-stone-600" title={c.user_agent || ""}>{formatUA(c.user_agent)}</td>
+                    <td className="p-2 text-black" title={c.user_agent || ""}>{formatUA(c.user_agent)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -203,7 +203,7 @@ export default function MetricasCampanaPage() {
       {/* Evolución diaria (métricas manuales) */}
       {daily.length > 0 && (
         <div className="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden">
-          <h2 className="p-4 font-bold text-stone-800 border-b border-stone-100">Evolución diaria (impresiones, clicks, conversiones)</h2>
+          <h2 className="p-4 font-bold text-black border-b border-stone-100">Evolución diaria (impresiones, clicks, conversiones)</h2>
           <div className="p-4 overflow-x-auto">
             <div className="flex items-end gap-1 min-w-max" style={{ height: 220 }}>
               {daily.slice(0, 30).reverse().map((d, i) => {
@@ -217,12 +217,12 @@ export default function MetricasCampanaPage() {
                       <div className="w-full bg-orange-400 rounded-t min-h-[2px]" style={{ height: `${clk}%` }} title={`Clicks: ${d.clicks || 0}`} />
                       <div className="w-full bg-stone-300 rounded-t min-h-[2px]" style={{ height: `${imp}%` }} title={`Impresiones: ${d.impressions || 0}`} />
                     </div>
-                    <span className="text-[10px] text-stone-400 truncate w-full text-center">{d.date ? new Date(d.date).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" }) : ""}</span>
+                    <span className="text-[10px] text-black truncate w-full text-center">{d.date ? new Date(d.date).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" }) : ""}</span>
                   </div>
                 );
               })}
             </div>
-            <div className="flex gap-4 mt-3 text-xs text-stone-500">
+            <div className="flex gap-4 mt-3 text-xs text-black">
               <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-stone-300" /> Impresiones</span>
               <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-orange-400" /> Clicks</span>
               <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-amber-200" /> Conversiones</span>
@@ -234,7 +234,7 @@ export default function MetricasCampanaPage() {
       {/* Links trackables + QR (alta calidad) */}
       {links.length > 0 && (
         <div className="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden">
-          <h2 className="p-4 font-bold text-stone-800 border-b border-stone-100">Links trackables + QR (descarga en alta calidad)</h2>
+          <h2 className="p-4 font-bold text-black border-b border-stone-100">Links trackables + QR (descarga en alta calidad)</h2>
           <div className="p-4 space-y-6">
             {links.map((l) => (
               <div key={l.id} className="flex flex-wrap items-start gap-4 p-3 bg-stone-50 rounded-lg">
@@ -245,7 +245,7 @@ export default function MetricasCampanaPage() {
                 )}
                 <div className="min-w-0 flex-1">
                   <div className="flex justify-between text-sm mb-1">
-                    <span className="font-medium text-stone-700 truncate pr-2">{l.name}</span>
+                    <span className="font-medium text-black truncate pr-2">{l.name}</span>
                     <span className="text-orange-600 font-semibold">{l.clicks ?? 0} clicks</span>
                   </div>
                   <div className="h-8 bg-stone-100 rounded-lg overflow-hidden">
@@ -270,9 +270,9 @@ export default function MetricasCampanaPage() {
       {/* Tabla links */}
       {links.length > 0 && (
         <div className="bg-white rounded-xl border border-stone-200 overflow-hidden">
-          <h2 className="p-4 font-bold text-stone-800 border-b">Links – detalle</h2>
+          <h2 className="p-4 font-bold text-black border-b">Links – detalle</h2>
           <table className="w-full text-left">
-            <thead className="bg-stone-50 text-stone-500 text-sm">
+            <thead className="bg-stone-50 text-black text-sm">
               <tr>
                 <th className="p-3">Nombre</th>
                 <th className="p-3">URL destino</th>
@@ -284,7 +284,7 @@ export default function MetricasCampanaPage() {
               {links.map((l) => (
                 <tr key={l.id} className="border-t border-stone-100">
                   <td className="p-3 font-medium">{l.name}</td>
-                  <td className="p-3 text-sm text-stone-600 truncate max-w-xs">{l.url}</td>
+                  <td className="p-3 text-sm text-black truncate max-w-xs">{l.url}</td>
                   <td className="p-3 text-right font-semibold text-orange-600">{l.clicks ?? 0}</td>
                   <td className="p-3 text-right">{l.conversions ?? 0}</td>
                 </tr>
@@ -297,13 +297,13 @@ export default function MetricasCampanaPage() {
       {/* Eventos por tipo */}
       {eventCounts.length > 0 && (
         <div className="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden">
-          <h2 className="p-4 font-bold text-stone-800 border-b border-stone-100">Eventos por tipo (últimos 30 días)</h2>
+          <h2 className="p-4 font-bold text-black border-b border-stone-100">Eventos por tipo (últimos 30 días)</h2>
           <div className="p-4 space-y-3">
             {eventCounts.map((e) => (
               <div key={e.type}>
                 <div className="flex justify-between text-sm mb-1">
-                  <span className="text-stone-700 capitalize">{e.type}</span>
-                  <span className="font-semibold text-stone-800">{e.count}</span>
+                  <span className="text-black capitalize">{e.type}</span>
+                  <span className="font-semibold text-black">{e.count}</span>
                 </div>
                 <div className="h-6 bg-stone-100 rounded-lg overflow-hidden">
                   <div className="h-full bg-violet-400 rounded-lg" style={{ width: `${Math.min(100, (e.count / maxEvents) * 100)}%` }} />

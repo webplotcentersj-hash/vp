@@ -26,14 +26,14 @@ export default function CampanasPage() {
   }
 
   const statusLabel = { draft: "Borrador", active: "Activa", paused: "Pausada", completed: "Completada" };
-  const statusClass = { draft: "bg-stone-100 text-stone-800", active: "bg-green-100 text-green-800", paused: "bg-amber-100 text-amber-800", completed: "bg-blue-100 text-blue-800" };
+  const statusClass = { draft: "bg-stone-100 text-black", active: "bg-green-100 text-green-800", paused: "bg-amber-100 text-amber-800", completed: "bg-blue-100 text-blue-800" };
 
-  if (loading) return <div className="py-12 text-stone-500">Cargando...</div>;
+  if (loading) return <div className="py-12 text-black">Cargando...</div>;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-stone-800">Campañas publicitarias</h1>
+        <h1 className="text-2xl font-bold text-black">Campañas publicitarias</h1>
         <Link href="/admin/campanas/nueva" className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700">
           Nueva campaña
         </Link>
@@ -48,7 +48,7 @@ export default function CampanasPage() {
 
       <div className="bg-white rounded-xl border border-stone-200 overflow-hidden">
         <table className="w-full text-left">
-          <thead className="bg-stone-50 text-stone-500 text-sm uppercase">
+          <thead className="bg-stone-50 text-black text-sm uppercase">
             <tr>
               <th className="p-3">Nombre</th>
               <th className="p-3">Producto</th>

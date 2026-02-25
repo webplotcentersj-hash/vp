@@ -57,12 +57,12 @@ export default function ClientesPage() {
     }
   }
 
-  if (loading) return <div className="py-12 text-stone-500">Cargando...</div>;
+  if (loading) return <div className="py-12 text-black">Cargando...</div>;
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold text-stone-800">Clientes</h1>
+        <h1 className="text-2xl font-bold text-black">Clientes</h1>
         <div className="flex gap-3">
           <input type="text" placeholder="Buscar..." value={search} onChange={(e) => setSearch(e.target.value)} className="px-3 py-2 border border-stone-200 rounded-lg" />
           <button
@@ -79,7 +79,7 @@ export default function ClientesPage() {
 
       <div className="bg-white rounded-xl border border-stone-200 overflow-hidden">
         <table className="w-full text-left">
-          <thead className="bg-stone-50 text-stone-500 text-sm uppercase">
+          <thead className="bg-stone-50 text-black text-sm uppercase">
             <tr>
               <th className="p-3">Nombre</th>
               <th className="p-3">Email</th>
@@ -109,15 +109,15 @@ export default function ClientesPage() {
             <h2 className="text-xl font-bold mb-4">{modal.id ? "Editar" : "Nuevo"} cliente</h2>
             <form onSubmit={save} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-stone-700 mb-1">Nombre</label>
+                <label className="block text-sm font-medium text-black mb-1">Nombre</label>
                 <input required value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} className="w-full px-3 py-2 border rounded-lg" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-stone-700 mb-1">Email</label>
+                <label className="block text-sm font-medium text-black mb-1">Email</label>
                 <input type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} className="w-full px-3 py-2 border rounded-lg" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-stone-700 mb-1">Teléfono</label>
+                <label className="block text-sm font-medium text-black mb-1">Teléfono</label>
                 <input value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} className="w-full px-3 py-2 border rounded-lg" />
               </div>
               <div className="flex gap-2 pt-4">

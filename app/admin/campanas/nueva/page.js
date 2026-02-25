@@ -102,21 +102,21 @@ export default function NuevaCampanaPage() {
     <div className="max-w-6xl mx-auto space-y-6">
       <div className="flex items-center gap-4">
         <Link href="/admin/campanas" className="text-orange-600 hover:underline font-medium">← Campañas</Link>
-        <h1 className="text-2xl md:text-3xl font-bold text-stone-800">Nueva campaña</h1>
+        <h1 className="text-2xl md:text-3xl font-bold text-black">Nueva campaña</h1>
       </div>
 
-      <p className="text-stone-600 text-sm">
+      <p className="text-black text-sm">
         Tocá los marcadores en el mapa para sumar o quitar ubicaciones. Las que elijas se marcan en verde.
       </p>
 
       {/* Mapa: ubicaciones de la base de datos (OpenStreetMap) */}
       <div className="rounded-2xl overflow-hidden shadow-xl border border-stone-200 bg-white p-3">
-        <h2 className="text-sm font-semibold text-stone-700 mb-1 flex items-center gap-2">
+        <h2 className="text-sm font-semibold text-black mb-1 flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-orange-500" /> Mapa – ubicaciones de la base de datos
         </h2>
-        <p className="text-xs text-stone-500 mb-2">Se muestran todas las ubicaciones con coordenadas (lat/lng). Tocá un marcador para sumarlo o quitarlo de la campaña.</p>
+        <p className="text-xs text-black mb-2">Se muestran todas las ubicaciones con coordenadas (lat/lng). Tocá un marcador para sumarlo o quitarlo de la campaña.</p>
         {loadingLocs ? (
-          <div className="h-[380px] flex items-center justify-center bg-stone-100 rounded-xl text-stone-500">Cargando mapa…</div>
+          <div className="h-[380px] flex items-center justify-center bg-stone-100 rounded-xl text-black">Cargando mapa…</div>
         ) : (
           <MapLocationPicker
             locations={locations}
@@ -130,9 +130,9 @@ export default function NuevaCampanaPage() {
       <form onSubmit={submit} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Columna datos */}
         <div className="space-y-4 bg-white rounded-2xl border border-stone-200 shadow-lg p-6">
-          <h2 className="text-lg font-bold text-stone-800 border-b border-stone-200 pb-2">Datos de la campaña</h2>
+          <h2 className="text-lg font-bold text-black border-b border-stone-200 pb-2">Datos de la campaña</h2>
           <div>
-            <label className="block text-sm font-medium text-stone-700 mb-1">Nombre *</label>
+            <label className="block text-sm font-medium text-black mb-1">Nombre *</label>
             <input
               required
               value={form.name}
@@ -143,7 +143,7 @@ export default function NuevaCampanaPage() {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-stone-700 mb-1">Producto</label>
+              <label className="block text-sm font-medium text-black mb-1">Producto</label>
               <input
                 value={form.product}
                 onChange={(e) => setForm((f) => ({ ...f, product: e.target.value }))}
@@ -152,7 +152,7 @@ export default function NuevaCampanaPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-stone-700 mb-1">Público</label>
+              <label className="block text-sm font-medium text-black mb-1">Público</label>
               <input
                 value={form.audience}
                 onChange={(e) => setForm((f) => ({ ...f, audience: e.target.value }))}
@@ -162,7 +162,7 @@ export default function NuevaCampanaPage() {
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-stone-700 mb-1">Slogan</label>
+            <label className="block text-sm font-medium text-black mb-1">Slogan</label>
             <input
               value={form.slogan}
               onChange={(e) => setForm((f) => ({ ...f, slogan: e.target.value }))}
@@ -172,7 +172,7 @@ export default function NuevaCampanaPage() {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-stone-700 mb-1">Fecha inicio *</label>
+              <label className="block text-sm font-medium text-black mb-1">Fecha inicio *</label>
               <input
                 required
                 type="date"
@@ -182,7 +182,7 @@ export default function NuevaCampanaPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-stone-700 mb-1">Fecha fin *</label>
+              <label className="block text-sm font-medium text-black mb-1">Fecha fin *</label>
               <input
                 required
                 type="date"
@@ -193,7 +193,7 @@ export default function NuevaCampanaPage() {
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-stone-700 mb-1">Presupuesto</label>
+            <label className="block text-sm font-medium text-black mb-1">Presupuesto</label>
             <input
               type="number"
               value={form.budget}
@@ -207,12 +207,12 @@ export default function NuevaCampanaPage() {
         {/* Columna ubicaciones + enviar */}
         <div className="space-y-4">
           <div className="bg-white rounded-2xl border border-stone-200 shadow-lg p-6">
-            <h2 className="text-lg font-bold text-stone-800 border-b border-stone-200 pb-2 mb-3">
+            <h2 className="text-lg font-bold text-black border-b border-stone-200 pb-2 mb-3">
               Ubicaciones elegidas ({form.locations.length})
             </h2>
-            <p className="text-stone-600 text-sm mb-3">La app genera el <strong>link trackable</strong> a partir de la URL que quieras trackear: ingresá la URL destino y al crear la campaña se generará un link corto que redirige ahí y registra los clicks. En Editar campaña podrás ver el QR con el número de chupete para imprimir.</p>
+            <p className="text-black text-sm mb-3">La app genera el <strong>link trackable</strong> a partir de la URL que quieras trackear: ingresá la URL destino y al crear la campaña se generará un link corto que redirige ahí y registra los clicks. En Editar campaña podrás ver el QR con el número de chupete para imprimir.</p>
             {form.locations.length === 0 ? (
-              <p className="text-stone-500 text-sm">Tocá los marcadores en el mapa o marcá abajo.</p>
+              <p className="text-black text-sm">Tocá los marcadores en el mapa o marcá abajo.</p>
             ) : (
               <ul className="space-y-4 max-h-[420px] overflow-y-auto">
                 {form.locations.map((id) => {
@@ -231,7 +231,7 @@ export default function NuevaCampanaPage() {
                           Quitar
                         </button>
                       </div>
-                      <p className="text-xs text-stone-600 mb-1.5">URL a trackear (la app generará un link corto y podrás obtener el QR en Editar)</p>
+                      <p className="text-xs text-black mb-1.5">URL a trackear (la app generará un link corto y podrás obtener el QR en Editar)</p>
                       <input
                         type="url"
                         placeholder="https://ejemplo.com/landing..."
@@ -254,7 +254,7 @@ export default function NuevaCampanaPage() {
 
             {withoutCoords.length > 0 && (
               <>
-                <p className="text-stone-500 text-xs mt-3 mb-1">Sin coordenadas en mapa (elegir por lista):</p>
+                <p className="text-black text-xs mt-3 mb-1">Sin coordenadas en mapa (elegir por lista):</p>
                 <div className="space-y-1.5 max-h-32 overflow-y-auto border rounded-lg p-2 bg-stone-50">
                   {withoutCoords.map((l) => (
                     <label key={l.id} className="flex items-center gap-2 cursor-pointer text-sm">
@@ -276,7 +276,7 @@ export default function NuevaCampanaPage() {
             <button
               type="button"
               onClick={() => router.back()}
-              className="px-5 py-2.5 rounded-xl border-2 border-stone-300 text-stone-700 font-medium hover:bg-stone-100"
+              className="px-5 py-2.5 rounded-xl border-2 border-stone-300 text-black font-medium hover:bg-stone-100"
             >
               Cancelar
             </button>

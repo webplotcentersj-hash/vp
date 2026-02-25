@@ -57,14 +57,14 @@ export default function AlquileresPage() {
     }
   }
 
-  if (loading) return <div className="py-12 text-stone-500">Cargando...</div>;
+  if (loading) return <div className="py-12 text-black">Cargando...</div>;
 
   const availableLocations = locations.filter((l) => l.status === "available" || (modal?.id && form.locationId === l.id));
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold text-stone-800">Alquileres</h1>
+        <h1 className="text-2xl font-bold text-black">Alquileres</h1>
         <button
           onClick={() => {
             setForm({ locationId: availableLocations[0]?.id ?? "", clientId: clients[0]?.id ?? "", startDate: "", endDate: "" });
@@ -78,7 +78,7 @@ export default function AlquileresPage() {
 
       <div className="bg-white rounded-xl border border-stone-200 overflow-hidden">
         <table className="w-full text-left">
-          <thead className="bg-stone-50 text-stone-500 text-sm uppercase">
+          <thead className="bg-stone-50 text-black text-sm uppercase">
             <tr>
               <th className="p-3">N° Chupete</th>
               <th className="p-3">Ubicación</th>
@@ -112,7 +112,7 @@ export default function AlquileresPage() {
             <h2 className="text-xl font-bold mb-4">{modal.id ? "Editar" : "Nuevo"} alquiler</h2>
             <form onSubmit={save} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-stone-700 mb-1">Ubicación</label>
+                <label className="block text-sm font-medium text-black mb-1">Ubicación</label>
                 <select required value={form.locationId} onChange={(e) => setForm((f) => ({ ...f, locationId: e.target.value }))} className="w-full px-3 py-2 border rounded-lg">
                   {availableLocations.map((l) => (
                     <option key={l.id} value={l.id}>N° {l.id} - {l.address}</option>
@@ -120,7 +120,7 @@ export default function AlquileresPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-stone-700 mb-1">Cliente</label>
+                <label className="block text-sm font-medium text-black mb-1">Cliente</label>
                 <select required value={form.clientId} onChange={(e) => setForm((f) => ({ ...f, clientId: e.target.value }))} className="w-full px-3 py-2 border rounded-lg">
                   {clients.map((c) => (
                     <option key={c.id} value={c.id}>{c.name}</option>
@@ -129,11 +129,11 @@ export default function AlquileresPage() {
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-sm font-medium text-stone-700 mb-1">Desde</label>
+                  <label className="block text-sm font-medium text-black mb-1">Desde</label>
                   <input required type="date" value={form.startDate} onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))} className="w-full px-3 py-2 border rounded-lg" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-stone-700 mb-1">Hasta</label>
+                  <label className="block text-sm font-medium text-black mb-1">Hasta</label>
                   <input required type="date" value={form.endDate} onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))} className="w-full px-3 py-2 border rounded-lg" />
                 </div>
               </div>

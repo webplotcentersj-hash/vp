@@ -27,7 +27,7 @@ export default function DashboardPage() {
     load();
   }, []);
 
-  if (loading) return <div className="text-center py-12 text-stone-500">Cargando...</div>;
+  if (loading) return <div className="text-center py-12 text-black">Cargando...</div>;
   if (error) return <div className="text-red-600 p-4">Error: {error}</div>;
 
   const d = data || {};
@@ -38,7 +38,7 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8">
-      <h1 className="text-2xl font-bold text-stone-800">Dashboard</h1>
+      <h1 className="text-2xl font-bold text-black">Dashboard</h1>
 
       {stats?.success && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -59,9 +59,9 @@ export default function DashboardPage() {
 
       {Array.isArray(d.vencimientosProximos) && d.vencimientosProximos.length > 0 && (
         <div className="bg-white rounded-xl border border-stone-200 overflow-hidden">
-          <h2 className="text-lg font-bold text-stone-800 p-4 border-b">Vencimientos próximos</h2>
+          <h2 className="text-lg font-bold text-black p-4 border-b">Vencimientos próximos</h2>
           <table className="w-full text-left">
-            <thead className="bg-stone-50 text-stone-500 text-sm uppercase">
+            <thead className="bg-stone-50 text-black text-sm uppercase">
               <tr>
                 <th className="p-3">Cliente</th>
                 <th className="p-3">Ubicación</th>
@@ -87,9 +87,9 @@ export default function DashboardPage() {
 function Card({ title, value, sub }) {
   return (
     <div className="bg-white p-6 rounded-xl border border-stone-200 shadow-sm">
-      <p className="text-stone-500 text-sm font-medium">{title}</p>
-      <p className="text-2xl font-bold text-stone-800 mt-1">{value}</p>
-      {sub && <p className="text-xs text-stone-400 mt-1">{sub}</p>}
+      <p className="text-black text-sm font-medium">{title}</p>
+      <p className="text-2xl font-bold text-black mt-1">{value}</p>
+      {sub && <p className="text-xs text-black mt-1">{sub}</p>}
     </div>
   );
 }
