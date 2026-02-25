@@ -26,6 +26,20 @@ export async function GET(request) {
        FROM campaign_metrics WHERE campaign_id = ?`,
       [campaignId]
     );
+    const [realClicksRow] = await pool.execute(
+      "SELECT COUNT(*) as total FROM campaign_link_clicks WHERE campaign_id = ?",
+      [campaignId]
+    );
+    const [realConversionsRow] = await pool.execute(
+      "SELECT COALESCE(SUM(conversions), 0) as total FROM campaign_links WHERE campaign_id = ?",
+      [campaignId]
+    );
+    const realClicks = Number(realClicksRow[0]?.total ?? 0);
+    const realConversions = Number(realConversionsRow[0]?.total ?? 0);
+    const manual = totalsRows[0] || {};
+    const totalImpressions = Number(manual.total_impressions) || 0;
+    const ctr = totalImpressions > 0 ? (realClicks / totalImpressions) * 100 : (realClicks > 0 ? null : 0);
+    const conversionRate = realClicks > 0 ? (realConversions / realClicks) * 100 : null;
     const [daily] = await pool.execute(
       "SELECT date, impressions, clicks, conversions, reach, engagement_rate, notes FROM campaign_metrics WHERE campaign_id = ? ORDER BY date DESC LIMIT 30",
       [campaignId]
@@ -85,8 +99,15 @@ export async function GET(request) {
       [campaignId]
     );
 
+    const totals = {
+      ...manual,
+      total_clicks: realClicks,
+      total_conversions: realConversions,
+      ctr: ctr != null ? ctr : manual.ctr,
+      conversion_rate: conversionRate != null ? conversionRate : manual.conversion_rate,
+    };
     return NextResponse.json({
-      totals: totalsRows[0] || {},
+      totals,
       daily,
       events,
       links,

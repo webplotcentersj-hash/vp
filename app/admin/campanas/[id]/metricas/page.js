@@ -69,23 +69,48 @@ export default function MetricasCampanaPage() {
         <h1 className="text-2xl font-bold text-stone-800">Métricas de campaña</h1>
       </div>
 
-      {/* Resumen */}
+      {/* Resumen KPIs – datos reales de clicks desde links trackables */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white p-5 rounded-xl border border-stone-200 shadow-sm">
-          <p className="text-stone-500 text-sm">Impresiones</p>
-          <p className="text-2xl font-bold text-stone-800">{(totals.total_impressions || 0).toLocaleString()}</p>
+        <div className="relative bg-gradient-to-br from-stone-50 to-white p-5 rounded-2xl border border-stone-200 shadow-md overflow-hidden">
+          <div className="absolute top-0 right-0 w-20 h-20 bg-stone-200/30 rounded-bl-full" />
+          <div className="relative flex items-start justify-between">
+            <div>
+              <p className="text-stone-500 text-sm font-medium uppercase tracking-wide">Impresiones</p>
+              <p className="text-3xl font-extrabold text-stone-800 mt-1">{(totals.total_impressions || 0).toLocaleString()}</p>
+            </div>
+            <span className="text-3xl opacity-60" aria-hidden>👁</span>
+          </div>
         </div>
-        <div className="bg-white p-5 rounded-xl border border-stone-200 shadow-sm">
-          <p className="text-stone-500 text-sm">Clicks</p>
-          <p className="text-2xl font-bold text-orange-600">{(totals.total_clicks || 0).toLocaleString()}</p>
+        <div className="relative bg-gradient-to-br from-orange-50 to-white p-5 rounded-2xl border border-orange-200 shadow-md overflow-hidden">
+          <div className="absolute top-0 right-0 w-20 h-20 bg-orange-300/20 rounded-bl-full" />
+          <div className="relative flex items-start justify-between">
+            <div>
+              <p className="text-orange-700 text-sm font-medium uppercase tracking-wide">Clicks</p>
+              <p className="text-3xl font-extrabold text-orange-600 mt-1">{(totals.total_clicks || 0).toLocaleString()}</p>
+              <p className="text-xs text-orange-600/80 mt-0.5">desde links trackables</p>
+            </div>
+            <span className="text-3xl opacity-60" aria-hidden>👆</span>
+          </div>
         </div>
-        <div className="bg-white p-5 rounded-xl border border-stone-200 shadow-sm">
-          <p className="text-stone-500 text-sm">Conversiones</p>
-          <p className="text-2xl font-bold text-green-600">{(totals.total_conversions || 0).toLocaleString()}</p>
+        <div className="relative bg-gradient-to-br from-emerald-50 to-white p-5 rounded-2xl border border-emerald-200 shadow-md overflow-hidden">
+          <div className="absolute top-0 right-0 w-20 h-20 bg-emerald-300/20 rounded-bl-full" />
+          <div className="relative flex items-start justify-between">
+            <div>
+              <p className="text-emerald-700 text-sm font-medium uppercase tracking-wide">Conversiones</p>
+              <p className="text-3xl font-extrabold text-emerald-600 mt-1">{(totals.total_conversions || 0).toLocaleString()}</p>
+            </div>
+            <span className="text-3xl opacity-60" aria-hidden>✓</span>
+          </div>
         </div>
-        <div className="bg-white p-5 rounded-xl border border-stone-200 shadow-sm">
-          <p className="text-stone-500 text-sm">CTR</p>
-          <p className="text-2xl font-bold text-stone-800">{totals.ctr != null ? `${Number(totals.ctr).toFixed(1)}%` : "—"}</p>
+        <div className="relative bg-gradient-to-br from-violet-50 to-white p-5 rounded-2xl border border-violet-200 shadow-md overflow-hidden">
+          <div className="absolute top-0 right-0 w-20 h-20 bg-violet-300/20 rounded-bl-full" />
+          <div className="relative flex items-start justify-between">
+            <div>
+              <p className="text-violet-700 text-sm font-medium uppercase tracking-wide">CTR</p>
+              <p className="text-3xl font-extrabold text-violet-700 mt-1">{totals.ctr != null ? `${Number(totals.ctr).toFixed(1)}%` : "—"}</p>
+            </div>
+            <span className="text-3xl opacity-60" aria-hidden>%</span>
+          </div>
         </div>
       </div>
 
