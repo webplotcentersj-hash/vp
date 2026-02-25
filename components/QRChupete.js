@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 
+const HIGH_QUALITY_SIZE = 512;
+
 export default function QRChupete({ url, chupeteNumber, size = 160 }) {
   const [dataUrl, setDataUrl] = useState("");
   const [error, setError] = useState(false);
@@ -21,10 +23,23 @@ export default function QRChupete({ url, chupeteNumber, size = 160 }) {
     return () => { cancelled = true; };
   }, [url, size]);
 
+  async function downloadHighQuality() {
+    if (!url) return;
+    try {
+      const QRCode = (await import("qrcode")).default;
+      const data = await QRCode.toDataURL(url, { width: HIGH_QUALITY_SIZE, margin: 2 });
+      const fileName = `qr-chupete-${chupeteNumber != null ? chupeteNumber : "link"}.png`;
+      const a = document.createElement("a");
+      a.href = data;
+      a.download = fileName;
+      a.click();
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
   if (error) return <div className="text-xs text-red-500">Error al generar QR</div>;
   if (!dataUrl) return <div className="bg-stone-100 rounded animate-pulse" style={{ width: size, height: size }} />;
-
-  const fileName = `qr-chupete-${chupeteNumber != null ? chupeteNumber : "link"}.png`;
 
   return (
     <div className="inline-flex flex-col items-center">
@@ -32,13 +47,13 @@ export default function QRChupete({ url, chupeteNumber, size = 160 }) {
       {chupeteNumber != null && (
         <span className="mt-1.5 text-sm font-bold text-stone-700">Chupete N° {chupeteNumber}</span>
       )}
-      <a
-        href={dataUrl}
-        download={fileName}
+      <button
+        type="button"
+        onClick={downloadHighQuality}
         className="mt-2 text-xs text-orange-600 hover:underline"
       >
-        Descargar QR
-      </a>
+        Descargar QR (alta calidad)
+      </button>
     </div>
   );
 }

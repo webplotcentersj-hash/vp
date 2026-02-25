@@ -27,7 +27,7 @@ export async function GET() {
       for (const loc of locs) {
         try {
           const [[detail]] = await poolMain.execute(
-            "SELECT id, address, reference, measurements FROM locations WHERE id = ?",
+            "SELECT id, address, reference, measurements, lat, lng FROM locations WHERE id = ?",
             [loc.location_id]
           );
           locations.push({
@@ -36,6 +36,9 @@ export async function GET() {
             address: detail?.address ?? "Detalle no disponible",
             reference: detail?.reference ?? "",
             measurements: detail?.measurements ?? "",
+            lat: detail?.lat,
+            lng: detail?.lng,
+            coordinates: detail?.lat != null && detail?.lng != null ? { lat: Number(detail.lat), lng: Number(detail.lng) } : undefined,
             justification: loc.justification,
           });
         } catch {
@@ -44,6 +47,8 @@ export async function GET() {
             address: "Detalle no disponible",
             reference: "",
             measurements: "",
+            lat: null,
+            lng: null,
             justification: loc.justification,
           });
         }

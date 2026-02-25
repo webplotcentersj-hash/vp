@@ -36,20 +36,63 @@ export async function GET(request) {
        GROUP BY event_type, DATE(created_at) ORDER BY date DESC`,
       [campaignId]
     );
-    const [linksRows] = await pool.execute(
-      `SELECT cl.id, cl.name, cl.url, cl.short_code, cl.conversions,
-        COUNT(clc.id) as clicks
-       FROM campaign_links cl
-       LEFT JOIN campaign_link_clicks clc ON cl.id = clc.link_id
-       WHERE cl.campaign_id = ? GROUP BY cl.id, cl.name, cl.url, cl.short_code, cl.conversions ORDER BY clicks DESC`,
+    let linksRows;
+    try {
+      [linksRows] = await pool.execute(
+        `SELECT cl.id, cl.name, cl.url, cl.short_code, cl.location_id, cl.conversions,
+          COUNT(clc.id) as clicks
+         FROM campaign_links cl
+         LEFT JOIN campaign_link_clicks clc ON cl.id = clc.link_id
+         WHERE cl.campaign_id = ? GROUP BY cl.id, cl.name, cl.url, cl.short_code, cl.location_id, cl.conversions ORDER BY clicks DESC`,
+        [campaignId]
+      );
+    } catch (_) {
+      [linksRows] = await pool.execute(
+        `SELECT cl.id, cl.name, cl.url, cl.short_code, cl.conversions,
+          COUNT(clc.id) as clicks
+         FROM campaign_links cl
+         LEFT JOIN campaign_link_clicks clc ON cl.id = clc.link_id
+         WHERE cl.campaign_id = ? GROUP BY cl.id, cl.name, cl.url, cl.short_code, cl.conversions ORDER BY clicks DESC`,
+        [campaignId]
+      );
+    }
+    const links = linksRows.map((r) => ({ ...r, clicks: Number(r.clicks || 0), conversions: Number(r.conversions || 0) }));
+
+    const [clicksByDateRows] = await pool.execute(
+      `SELECT DATE(clc.clicked_at) as date, COUNT(*) as clicks
+       FROM campaign_link_clicks clc
+       WHERE clc.campaign_id = ? AND clc.clicked_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+       GROUP BY DATE(clc.clicked_at) ORDER BY date ASC`,
       [campaignId]
     );
-    const links = linksRows.map((r) => ({ ...r, clicks: Number(r.clicks || 0), conversions: Number(r.conversions || 0) }));
+
+    const [recentClicksRows] = await pool.execute(
+      `SELECT clc.id, clc.link_id, clc.referrer, clc.user_agent, clc.clicked_at, clc.ip_address,
+        cl.name as link_name, cl.location_id
+       FROM campaign_link_clicks clc
+       JOIN campaign_links cl ON cl.id = clc.link_id
+       WHERE clc.campaign_id = ?
+       ORDER BY clc.clicked_at DESC LIMIT 100`,
+      [campaignId]
+    );
+
+    const [referrerCounts] = await pool.execute(
+      `SELECT COALESCE(NULLIF(TRIM(clc.referrer), ''), '(directo)') as referrer, COUNT(*) as total
+       FROM campaign_link_clicks clc
+       WHERE clc.campaign_id = ? AND clc.clicked_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+       GROUP BY COALESCE(NULLIF(TRIM(clc.referrer), ''), '(directo)')
+       ORDER BY total DESC LIMIT 10`,
+      [campaignId]
+    );
+
     return NextResponse.json({
       totals: totalsRows[0] || {},
       daily,
       events,
       links,
+      clicksByDate: clicksByDateRows || [],
+      recentClicks: recentClicksRows || [],
+      referrerCounts: referrerCounts || [],
     });
   } catch (e) {
     console.error("Metrics GET:", e);
