@@ -25,6 +25,9 @@ export async function GET(request) {
       "INSERT INTO campaign_link_clicks (link_id, campaign_id, ip_address, user_agent, referrer) VALUES (?, ?, ?, ?, ?)",
       [link.id, link.campaign_id, ip, userAgent, referrer]
     );
+    try {
+      await pool.execute("UPDATE campaign_links SET clicks = COALESCE(clicks, 0) + 1 WHERE id = ?", [link.id]);
+    } catch (_) {}
     return NextResponse.redirect(link.url, 302);
   } catch (e) {
     console.error("Track:", e);

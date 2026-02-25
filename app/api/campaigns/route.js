@@ -94,6 +94,28 @@ export async function POST(request) {
           "INSERT INTO campaign_locations (campaign_id, location_id, justification) VALUES (?, ?, ?)",
           [campaignId, locId, justification]
         );
+        const linkUrl = (loc.linkUrl ?? loc.url ?? "").toString().trim();
+        if (linkUrl) {
+          const linkName = (loc.linkName ?? loc.name ?? `Chupete N° ${locId}`).toString().trim() || `Chupete N° ${locId}`;
+          const chars = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+          let shortCode = "";
+          for (let i = 0; i < 8; i++) shortCode += chars[Math.floor(Math.random() * chars.length)];
+          const [ex] = await conn.execute("SELECT id FROM campaign_links WHERE short_code = ?", [shortCode]);
+          if (ex.length > 0) shortCode += chars[Math.floor(Math.random() * chars.length)];
+          try {
+            await conn.execute(
+              "INSERT INTO campaign_links (campaign_id, location_id, name, url, short_code, notes, is_active) VALUES (?, ?, ?, ?, ?, ?, 1)",
+              [campaignId, locId, linkName, linkUrl, shortCode, "", 1]
+            );
+          } catch (err) {
+            if (err.message && err.message.includes("location_id")) {
+              await conn.execute(
+                "INSERT INTO campaign_links (campaign_id, name, url, short_code, notes, is_active) VALUES (?, ?, ?, ?, ?, 1)",
+                [campaignId, linkName, linkUrl, shortCode, "", 1]
+              );
+            } else throw err;
+          }
+        }
       }
     }
     await conn.commit();
@@ -104,7 +126,7 @@ export async function POST(request) {
     conn?.release?.();
     console.error("Campaigns POST:", e);
     return NextResponse.json(
-      { success: false, message: "Error al crear campaña.", error: e.message },
+      { success: false, message: "Error al crear campaña. Revisa en Hostinger que Remote MySQL permita conexiones desde cualquier IP (Any Host)." },
       { status: 500 }
     );
   }

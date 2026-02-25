@@ -12,6 +12,7 @@ function formatLocation(row) {
 
 export async function GET() {
   try {
+    // Todas las ubicaciones de la base de datos (tabla locations)
     const [rows] = await pool.execute("SELECT * FROM locations ORDER BY id ASC");
     return NextResponse.json(rows.map(formatLocation));
   } catch (e) {

@@ -25,7 +25,7 @@ export async function POST(request) {
   } catch (e) {
     console.error("Login error:", e);
     return NextResponse.json(
-      { success: false, message: "Error en el servidor.", error: e.message },
+      { success: false, message: "Error en el servidor. Revisa que la base de datos esté configurada (DB_HOST en .env.local)." },
       { status: 500 }
     );
   }

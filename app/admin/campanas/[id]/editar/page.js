@@ -3,7 +3,10 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { apiCall } from "@/lib/api";
+
+const MapLocationPicker = dynamic(() => import("@/components/MapLocationPicker"), { ssr: false });
 
 export default function EditarCampanaPage() {
   const params = useParams();
@@ -55,11 +58,8 @@ export default function EditarCampanaPage() {
           budget: c.budget != null ? String(c.budget) : "",
           locations: (c.locations || []).map((loc) => loc.id ?? loc.location_id),
         });
-        const allLocs = Array.isArray(locs) ? locs : [];
-        const availableOrSelected = allLocs.filter(
-          (l) => l.status === "available" || (c.locations || []).some((cl) => (cl.id ?? cl.location_id) === l.id)
-        );
-        setLocations(availableOrSelected);
+        // Todas las ubicaciones de la base de datos para el mapa
+        setLocations(Array.isArray(locs) ? locs : []);
         setLinks(Array.isArray(linkList) ? linkList : []);
       })
       .catch((e) => {
@@ -157,8 +157,8 @@ export default function EditarCampanaPage() {
   }
 
   function trackingUrl(link) {
-    if (link.tracking_url) return link.tracking_url;
     if (typeof window !== "undefined" && link.short_code) return `${window.location.origin}/api/track?c=${link.short_code}`;
+    if (link.tracking_url) return link.tracking_url;
     return "";
   }
 
@@ -166,13 +166,18 @@ export default function EditarCampanaPage() {
   if (!campaign) return <div className="text-red-600">Campaña no encontrada.</div>;
 
   return (
-    <div className="max-w-3xl space-y-8">
+    <div className="max-w-5xl space-y-8">
       <div className="flex items-center gap-4">
-        <Link href={`/admin/campanas/${id}`} className="text-orange-600 hover:underline">← Campaña</Link>
+        <Link href={`/admin/campanas/${id}`} className="text-orange-600 hover:underline font-medium">← Campaña</Link>
         <h1 className="text-2xl font-bold text-stone-800">Editar campaña</h1>
       </div>
 
-      <form onSubmit={submitCampaign} className="space-y-4 bg-white p-6 rounded-xl border border-stone-200">
+      <div className="rounded-2xl overflow-hidden shadow-lg border border-stone-200 bg-white p-3">
+        <p className="text-stone-600 text-sm mb-2">Ubicaciones de la base de datos (con coordenadas). Tocá los marcadores para sumar o quitar.</p>
+        <MapLocationPicker locations={locations} selectedIds={form.locations} onToggle={toggleLocation} height="320px" />
+      </div>
+
+      <form onSubmit={submitCampaign} className="space-y-4 bg-white p-6 rounded-xl border border-stone-200 shadow">
         <div>
           <label className="block text-sm font-medium text-stone-700 mb-1">Nombre *</label>
           <input required value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} className="w-full px-3 py-2 border rounded-lg" />
@@ -219,11 +224,11 @@ export default function EditarCampanaPage() {
           <input type="number" value={form.budget} onChange={(e) => setForm((f) => ({ ...f, budget: e.target.value }))} className="w-full px-3 py-2 border rounded-lg" />
         </div>
         <div>
-          <label className="block text-sm font-medium text-stone-700 mb-2">Ubicaciones (al menos una)</label>
-          <div className="space-y-2 max-h-48 overflow-y-auto border rounded-lg p-3">
+          <label className="block text-sm font-medium text-stone-700 mb-2">Ubicaciones (al menos una) – mapa arriba o lista</label>
+          <div className="space-y-2 max-h-40 overflow-y-auto border rounded-lg p-3 bg-stone-50">
             {locations.map((l) => (
               <label key={l.id} className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={form.locations.includes(l.id)} onChange={() => toggleLocation(l.id)} />
+                <input type="checkbox" checked={form.locations.includes(l.id)} onChange={() => toggleLocation(l.id)} className="rounded border-stone-400 text-orange-600" />
                 <span>N° {l.id} - {l.address}</span>
               </label>
             ))}

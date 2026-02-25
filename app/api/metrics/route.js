@@ -36,16 +36,15 @@ export async function GET(request) {
        GROUP BY event_type, DATE(created_at) ORDER BY date DESC`,
       [campaignId]
     );
-    const [links] = await pool.execute(
-      `SELECT cl.id, cl.name, cl.url, cl.clicks, cl.conversions,
-        COUNT(DISTINCT clc.id) as total_clicks_detailed,
-        COUNT(DISTINCT DATE(clc.clicked_at)) as active_days,
-        CASE WHEN cl.clicks > 0 THEN (cl.conversions / cl.clicks) * 100 ELSE 0 END as conversion_rate
+    const [linksRows] = await pool.execute(
+      `SELECT cl.id, cl.name, cl.url, cl.short_code, cl.conversions,
+        COUNT(clc.id) as clicks
        FROM campaign_links cl
        LEFT JOIN campaign_link_clicks clc ON cl.id = clc.link_id
-       WHERE cl.campaign_id = ? GROUP BY cl.id ORDER BY cl.clicks DESC`,
+       WHERE cl.campaign_id = ? GROUP BY cl.id, cl.name, cl.url, cl.short_code, cl.conversions ORDER BY clicks DESC`,
       [campaignId]
     );
+    const links = linksRows.map((r) => ({ ...r, clicks: Number(r.clicks || 0), conversions: Number(r.conversions || 0) }));
     return NextResponse.json({
       totals: totalsRows[0] || {},
       daily,

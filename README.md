@@ -62,8 +62,45 @@ npm run build
 npm start
 ```
 
+## Despliegue en Vercel
+
+1. **Sube el código a GitHub** (ya lo tienes en `https://github.com/webplotcentersj-hash/vp`).
+
+2. **Entra en [vercel.com](https://vercel.com)** → Inicia sesión (con GitHub si quieres).
+
+3. **Import Project** → “Import Git Repository” → elige el repo **webplotcentersj-hash/vp**.
+
+4. **Configuración del proyecto:**
+   - **Root Directory:** `./` (dejar por defecto si el repo es solo esta app).
+   - **Framework Preset:** Next.js (Vercel lo detecta solo).
+   - No cambies Build Command ni Output Directory.
+
+5. **Variables de entorno** (Environment Variables): añade todas estas (y márcalas para Production, Preview y Development si quieres):
+
+   | Nombre | Valor |
+   |--------|--------|
+   | `DB_HOST` | **Host MySQL remoto** (ej. `srv123.hostinger.com` o el que te dé tu hosting). **No uses `localhost`** en Vercel. |
+   | `DB_USER` | u956355532_vpv |
+   | `DB_PASSWORD` | Tu contraseña BD principal (entre comillas si tiene símbolos) |
+   | `DB_NAME` | u956355532_vp |
+   | `DB_CAMPAIGNS_HOST` | **Mismo host remoto** (o el de la BD de campañas si es otro) |
+   | `DB_CAMPAIGNS_USER` | u956355532_mapi |
+   | `DB_CAMPAIGNS_PASSWORD` | Tu contraseña BD campañas (entre comillas si tiene símbolos) |
+   | `DB_CAMPAIGNS_NAME` | u956355532_mapados |
+   | `GEMINI_API_KEY` | Tu API key de Gemini (opcional, solo si usas /admin/ia) |
+   | `NEXT_PUBLIC_APP_URL` | `https://tu-dominio.vercel.app` (la URL final de la app; para links de tracking) |
+
+   **Importante:** En Vercel la app corre en la nube, así que `DB_HOST` y `DB_CAMPAIGNS_HOST` tienen que ser el **hostname público** de MySQL que te da tu proveedor (Hostinger, etc.), no `localhost`. En el panel del hosting suele aparecer como “MySQL host” o “Database host”.
+
+6. **Deploy** → Vercel hace build y despliegue. Cuando termine te da una URL tipo `https://vp-xxx.vercel.app`.
+
+7. Después del primer deploy, pon en `NEXT_PUBLIC_APP_URL` esa URL real para que los links trackables de campañas apunten bien.
+
+---
+
 ## Notas
 
 - La BD principal debe tener las tablas: `users`, `locations`, `clients`, `rentals` (como en el proyecto PHP original).
 - La BD de campañas debe tener: `campaigns`, `campaign_locations`, `campaign_metrics`, `campaign_links`, etc. (según `setup_campaigns.sql`).
-- Si no configuras las BD, el login y las rutas que usan BD fallarán hasta que `.env.local` esté correcto.
+- Si no configuras las BD, el login y las rutas que usan BD fallarán hasta que las variables de entorno estén correctas.
+- **Vercel:** el servidor MySQL debe aceptar conexiones desde internet (acceso remoto habilitado en el hosting).

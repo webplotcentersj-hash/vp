@@ -53,10 +53,21 @@ export async function POST(request) {
     const shortCode = await uniqueShortCode();
     const notes = body.notes ?? "";
     const isActive = body.is_active ?? 1;
-    const [result] = await pool.execute(
-      "INSERT INTO campaign_links (campaign_id, name, url, short_code, notes, is_active) VALUES (?, ?, ?, ?, ?, ?)",
-      [body.campaign_id, body.name, body.url, shortCode, notes, isActive]
-    );
+    const locationId = body.location_id != null ? Number(body.location_id) : null;
+    let result;
+    try {
+      [result] = await pool.execute(
+        "INSERT INTO campaign_links (campaign_id, location_id, name, url, short_code, notes, is_active) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        [body.campaign_id, locationId, body.name, body.url, shortCode, notes, isActive]
+      );
+    } catch (e) {
+      if (e.message && e.message.includes("location_id")) {
+        [result] = await pool.execute(
+          "INSERT INTO campaign_links (campaign_id, name, url, short_code, notes, is_active) VALUES (?, ?, ?, ?, ?, ?)",
+          [body.campaign_id, body.name, body.url, shortCode, notes, isActive]
+        );
+      } else throw e;
+    }
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
     const trackingUrl = `${baseUrl}/api/track?c=${shortCode}`;
     return NextResponse.json({
