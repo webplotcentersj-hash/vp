@@ -105,13 +105,13 @@ export async function POST(request) {
           try {
             await conn.execute(
               "INSERT INTO campaign_links (campaign_id, location_id, name, url, short_code, notes, is_active) VALUES (?, ?, ?, ?, ?, ?, 1)",
-              [campaignId, locId, linkName, linkUrl, shortCode, "", 1]
+              [campaignId, locId, linkName, linkUrl, shortCode, ""]
             );
           } catch (err) {
             if (err.message && err.message.includes("location_id")) {
               await conn.execute(
                 "INSERT INTO campaign_links (campaign_id, name, url, short_code, notes, is_active) VALUES (?, ?, ?, ?, ?, 1)",
-                [campaignId, linkName, linkUrl, shortCode, "", 1]
+                [campaignId, linkName, linkUrl, shortCode, ""]
               );
             } else throw err;
           }
