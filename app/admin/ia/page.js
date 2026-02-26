@@ -21,8 +21,7 @@ export default function IAPage() {
     setLoading(true);
     try {
       const res = await apiCall("gemini", "POST", {
-        contents: text,
-        systemInstruction: "Eres PlotBot, asistente de Vía Pública Plot Center. Responde de forma breve y útil.",
+        messages: [...messages, { role: "user", text }],
       });
       const reply = res?.text || "No pude generar una respuesta.";
       setMessages((m) => [...m, { role: "ia", text: reply }]);
@@ -33,13 +32,45 @@ export default function IAPage() {
     }
   }
 
+  const suggestions = [
+    "¿Cómo creo una campaña nueva?",
+    "¿Cómo agrego un link trackable por chupete?",
+    "¿Dónde veo las métricas de clicks?",
+    "¿Cómo descargo el QR en buena calidad?",
+  ];
+
   return (
     <div className="flex flex-col h-[calc(100vh-8rem)]">
-      <h1 className="text-2xl font-bold text-black mb-4">Asistente IA</h1>
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-2xl font-bold text-black">Asistente IA – PlotBot</h1>
+        {messages.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setMessages([])}
+            className="text-sm px-3 py-1.5 rounded-lg border border-stone-200 text-black hover:bg-stone-100"
+          >
+            Nueva conversación
+          </button>
+        )}
+      </div>
       <div className="flex-1 bg-white rounded-xl border border-stone-200 flex flex-col overflow-hidden">
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {messages.length === 0 && (
-            <p className="text-black text-center py-8">Escribe un mensaje para hablar con el asistente.</p>
+            <div className="text-center py-8">
+              <p className="text-black mb-4">Escribí un mensaje o elegí una pregunta para empezar.</p>
+              <div className="flex flex-wrap justify-center gap-2">
+                {suggestions.map((s, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setInput(s)}
+                    className="px-4 py-2 rounded-xl border border-orange-200 bg-orange-50 text-orange-800 text-sm hover:bg-orange-100"
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
           )}
           {messages.map((msg, i) => (
             <div
