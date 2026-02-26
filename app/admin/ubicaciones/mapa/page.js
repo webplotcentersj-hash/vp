@@ -16,6 +16,19 @@ export default function MapaPantallaCompletaPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searching, setSearching] = useState(false);
   const [mapReady, setMapReady] = useState(false);
+  const [filterNumber, setFilterNumber] = useState("");
+  const [filterStatus, setFilterStatus] = useState("all");
+  const filteredLocations = locations.filter((loc) => {
+    if (filterNumber.trim()) {
+      const num = filterNumber.trim();
+      if (!String(loc.id).includes(num)) return false;
+    }
+    if (filterStatus !== "all") {
+      if (filterStatus === "available" && loc.status !== "available") return false;
+      if (filterStatus === "rented" && loc.status !== "rented") return false;
+    }
+    return true;
+  });
 
   useEffect(() => {
     apiCall("locations").then((data) => setLocations(Array.isArray(data) ? data : []));
@@ -54,7 +67,7 @@ export default function MapaPantallaCompletaPage() {
       try { m.remove(); } catch (_) {}
     });
     markersRef.current = [];
-    const withCoords = locations.filter(
+    const withCoords = filteredLocations.filter(
       (loc) =>
         (loc.coordinates?.lat != null && loc.coordinates?.lng != null) ||
         (loc.lat != null && loc.lng != null)
@@ -81,7 +94,7 @@ export default function MapaPantallaCompletaPage() {
     if (bounds.length > 0) {
       map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
     }
-  }, [mapReady, locations]);
+  }, [mapReady, filteredLocations]);
 
   async function handleSearch(e) {
     e.preventDefault();
@@ -107,16 +120,55 @@ export default function MapaPantallaCompletaPage() {
     }
   }
 
+  function goToNumber() {
+    const num = filterNumber.trim();
+    if (!num || !mapRef.current) return;
+    const loc = filteredLocations.find((l) => String(l.id) === num);
+    if (loc) {
+      const lat = Number(loc.coordinates?.lat ?? loc.lat);
+      const lng = Number(loc.coordinates?.lng ?? loc.lng);
+      if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        mapRef.current.setView([lat, lng], 17);
+      }
+    }
+  }
+
   return (
     <div className="fixed inset-0 flex flex-col bg-stone-100 z-40">
-      <div className="flex items-center gap-2 p-3 bg-white border-b border-stone-200 shadow-sm flex-shrink-0">
+      <div className="flex flex-wrap items-center gap-2 p-3 bg-white border-b border-stone-200 shadow-sm flex-shrink-0">
         <Link href="/admin/ubicaciones" className="px-3 py-2 text-orange-600 hover:underline font-medium rounded-lg">
           ← Ubicaciones
         </Link>
-        <form onSubmit={handleSearch} className="flex-1 flex gap-2 max-w-xl">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-sm text-black font-medium">Filtros:</span>
           <input
             type="text"
-            placeholder="Buscar dirección o lugar..."
+            placeholder="Por número (chupete)"
+            value={filterNumber}
+            onChange={(e) => setFilterNumber(e.target.value)}
+            className="w-28 px-3 py-2 border border-stone-200 rounded-lg text-black placeholder-stone-400"
+          />
+          <button
+            type="button"
+            onClick={goToNumber}
+            className="px-3 py-2 bg-stone-600 text-white rounded-lg hover:bg-stone-700 text-sm"
+          >
+            Ir al N°
+          </button>
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="px-3 py-2 border border-stone-200 rounded-lg text-black bg-white"
+          >
+            <option value="all">Todos los estados</option>
+            <option value="available">Disponible</option>
+            <option value="rented">Alquilado</option>
+          </select>
+        </div>
+        <form onSubmit={handleSearch} className="flex-1 flex gap-2 min-w-[200px] max-w-xl">
+          <input
+            type="text"
+            placeholder="Buscar dirección o lugar en el mapa..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="flex-1 px-4 py-2 border border-stone-200 rounded-lg text-black placeholder-stone-400"
@@ -126,10 +178,12 @@ export default function MapaPantallaCompletaPage() {
             disabled={searching}
             className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-60"
           >
-            {searching ? "Buscando…" : "Buscar"}
+            {searching ? "…" : "Buscar"}
           </button>
         </form>
-        <span className="text-sm text-black hidden sm:inline">{locations.length} ubicaciones</span>
+        <span className="text-sm text-black">
+          {filteredLocations.length} de {locations.length} ubicaciones
+        </span>
       </div>
       <div ref={containerRef} className="flex-1 w-full min-h-0" />
       <style jsx global>{`

@@ -37,7 +37,6 @@ export async function GET() {
         (SELECT COUNT(DISTINCT location_id) FROM campaign_locations cloc WHERE cloc.campaign_id = c.id) as num_locations
       FROM campaigns c
       ORDER BY real_clicks DESC
-      LIMIT 10
     `);
     const [trend30] = await pool.execute(`
       SELECT DATE(clc.clicked_at) as date, COUNT(*) as clicks

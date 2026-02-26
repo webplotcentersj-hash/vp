@@ -35,16 +35,73 @@ export default function DashboardPage() {
   const statusDistribution = s.status_distribution || [];
   const trend30 = s.trend_30_days || [];
 
+  const totalClicks = Number(metrics.total_clicks || 0);
+  const totalCampaigns = Number(campaigns.total_campaigns ?? 0);
+  const maxClicksCampaign = Math.max(1, ...topCampaigns.map((c) => Number(c.real_clicks ?? 0)));
+  const totalClicksInChart = topCampaigns.reduce((sum, c) => sum + Number(c.real_clicks ?? 0), 0);
+
   return (
     <div className="space-y-8">
       <h1 className="text-2xl font-bold text-black">Dashboard – Campañas</h1>
 
+      {totalCampaigns > 0 && (
+        <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
+          <p className="text-black font-medium">
+            Hay <strong>{totalCampaigns}</strong> campaña(s). Total de clicks: <strong className="text-orange-600">{totalClicks.toLocaleString()}</strong>.
+          </p>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card title="Campañas activas" value={campaigns.active_campaigns ?? 0} sub={`de ${campaigns.total_campaigns ?? 0} totales`} />
-        <Card title="Total clicks" value={Number(metrics.total_clicks || 0).toLocaleString()} sub={`CTR: ${Number(metrics.global_ctr || 0).toFixed(2)}%`} />
+        <Card title="Total clicks" value={totalClicks.toLocaleString()} sub={totalCampaigns > 0 ? `en ${totalCampaigns} campaña(s)` : "Sin campañas"} highlight />
         <Card title="Conversiones" value={Number(metrics.total_conversions || 0).toLocaleString()} sub={`Tasa: ${Number(metrics.global_conversion_rate || 0).toFixed(2)}%`} />
         <Card title="Links activos" value={links.active_links ?? 0} sub={`de ${links.total_links ?? 0} links`} />
       </div>
+
+      {topCampaigns.length > 0 && totalClicks > 0 && (
+        <div className="bg-white rounded-xl border border-stone-200 overflow-hidden">
+          <h2 className="text-lg font-bold text-black p-4 border-b">Clicks por campaña</h2>
+          <p className="px-4 pt-2 text-sm text-black">Total: {totalClicks.toLocaleString()} clicks en {totalCampaigns} campaña(s).</p>
+          <div className="p-4 space-y-4">
+            {topCampaigns.map((c) => {
+              const clicks = Number(c.real_clicks ?? 0);
+              const pct = maxClicksCampaign > 0 ? (clicks / maxClicksCampaign) * 100 : 0;
+              return (
+                <div key={c.id}>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="font-medium text-black truncate pr-2">{c.name}</span>
+                    <span className="font-semibold text-orange-600">{clicks.toLocaleString()} clicks</span>
+                  </div>
+                  <div className="h-8 bg-stone-100 rounded-lg overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-orange-400 to-orange-500 rounded-lg transition-all" style={{ width: `${Math.max(2, pct)}%` }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {topCampaigns.length > 0 && totalClicksInChart > 0 && (
+        <div className="bg-white rounded-xl border border-stone-200 overflow-hidden">
+          <h2 className="text-lg font-bold text-black p-4 border-b">Distribución de clicks por campaña</h2>
+          <div className="p-4 flex flex-wrap gap-4 items-center">
+            {topCampaigns.map((c) => {
+              const clicks = Number(c.real_clicks ?? 0);
+              const pct = totalClicksInChart > 0 ? (clicks / totalClicksInChart) * 100 : 0;
+              return (
+                <div key={c.id} className="flex items-center gap-2">
+                  <div className="w-4 h-4 rounded-full bg-orange-500 opacity-80" style={{ opacity: 0.4 + (pct / 100) * 0.6 }} />
+                  <span className="text-sm text-black truncate max-w-[180px]" title={c.name}>{c.name}</span>
+                  <span className="text-sm font-semibold text-orange-600">{pct.toFixed(0)}%</span>
+                  <span className="text-xs text-black">({clicks})</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {statusDistribution.length > 0 && (
         <div className="bg-white rounded-xl border border-stone-200 p-4">
@@ -81,7 +138,7 @@ export default function DashboardPage() {
       })()}
 
       <div className="bg-white rounded-xl border border-stone-200 overflow-hidden">
-        <h2 className="text-lg font-bold text-black p-4 border-b">Campañas (por clicks)</h2>
+        <h2 className="text-lg font-bold text-black p-4 border-b">Todas las campañas (ordenadas por clicks)</h2>
         <table className="w-full text-left">
           <thead className="bg-stone-50 text-black text-sm uppercase">
             <tr>
@@ -127,11 +184,11 @@ export default function DashboardPage() {
   );
 }
 
-function Card({ title, value, sub }) {
+function Card({ title, value, sub, highlight }) {
   return (
-    <div className="bg-white p-6 rounded-xl border border-stone-200 shadow-sm">
+    <div className={`p-6 rounded-xl border shadow-sm ${highlight ? "bg-orange-50 border-orange-200" : "bg-white border-stone-200"}`}>
       <p className="text-black text-sm font-medium">{title}</p>
-      <p className="text-2xl font-bold text-black mt-1">{value}</p>
+      <p className={`text-2xl font-bold mt-1 ${highlight ? "text-orange-600" : "text-black"}`}>{value}</p>
       {sub != null && sub !== "" && <p className="text-xs text-black mt-1">{sub}</p>}
     </div>
   );
