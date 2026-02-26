@@ -2,16 +2,30 @@
 
 import { useState, useEffect, useRef } from "react";
 
-const STORAGE_KEY = "ubicaciones_session_id";
+const COOKIE_NAME = "ubicaciones_sid";
+const COOKIE_MAX_AGE_DAYS = 365;
 const DEFAULT_CENTER = [-31.5375, -68.5364];
 const DEFAULT_ZOOM = 12;
 
+function getCookie(name) {
+  if (typeof document === "undefined") return null;
+  const m = document.cookie.match(new RegExp("(?:^|;\\s*)" + name.replace(/[\\.$*+?^()|[\]{}]/g, "\\$&") + "=([^;]*)"));
+  return m ? decodeURIComponent(m[1]) : null;
+}
+
+function setCookie(name, value, days) {
+  if (typeof document === "undefined") return;
+  const d = new Date();
+  d.setTime(d.getTime() + days * 24 * 60 * 60 * 1000);
+  document.cookie = name + "=" + encodeURIComponent(value) + "; path=/; max-age=" + (days * 24 * 60 * 60) + "; SameSite=Lax";
+}
+
 function getOrCreateSessionId() {
   if (typeof window === "undefined") return null;
-  let id = localStorage.getItem(STORAGE_KEY);
+  let id = getCookie(COOKIE_NAME);
   if (!id) {
     id = "s_" + Math.random().toString(36).slice(2) + "_" + Date.now().toString(36);
-    localStorage.setItem(STORAGE_KEY, id);
+    setCookie(COOKIE_NAME, id, COOKIE_MAX_AGE_DAYS);
   }
   return id;
 }
@@ -21,6 +35,8 @@ export default function UbicacionesPublicPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState(new Set());
+  const [countsByLocation, setCountsByLocation] = useState({});
+  const [totalPeople, setTotalPeople] = useState(0);
   const [sessionId, setSessionId] = useState(null);
   const [mapReady, setMapReady] = useState(false);
   const mapContainerRef = useRef(null);
@@ -49,9 +65,22 @@ export default function UbicacionesPublicPage() {
       .then((data) => {
         const ids = Array.isArray(data?.selectedIds) ? data.selectedIds : [];
         setSelectedIds(new Set(ids));
+        setCountsByLocation(typeof data?.countsByLocation === "object" ? data.countsByLocation : {});
+        setTotalPeople(Number(data?.totalSessionsWithSelections) || 0);
       })
       .catch(() => {});
   }, [sessionId]);
+
+  function refreshCounts() {
+    if (!sessionId) return;
+    fetch(`/api/public-selections?session=${encodeURIComponent(sessionId)}`)
+      .then((r) => r.json())
+      .then((data) => {
+        setCountsByLocation(typeof data?.countsByLocation === "object" ? data.countsByLocation : {});
+        setTotalPeople(Number(data?.totalSessionsWithSelections) || 0);
+      })
+      .catch(() => {});
+  }
 
   const filtered = list.filter(
     (l) =>
@@ -71,7 +100,9 @@ export default function UbicacionesPublicPage() {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ sessionId, selectedIds: arr }),
-        }).catch(() => {});
+        })
+          .then(() => refreshCounts())
+          .catch(() => {});
       }
       return next;
     });
@@ -145,8 +176,10 @@ export default function UbicacionesPublicPage() {
         iconAnchor: [18, 44],
       });
       const marker = L.marker([lat, lng], { icon }).addTo(map);
+      const count = countsByLocation[loc.id];
+      const countText = count > 0 ? `<br/><strong>${count} ${count === 1 ? "persona marcó" : "personas marcaron"}</strong>` : "";
       marker.bindTooltip(
-        `<strong>N° ${loc.id}</strong><br/>${(loc.address || "").replace(/</g, "&lt;")}<br/><em>Tocá para seleccionar</em>`,
+        `<strong>N° ${loc.id}</strong><br/>${(loc.address || "").replace(/</g, "&lt;")}${countText}<br/><em>Tocá para seleccionar</em>`,
         { permanent: false, direction: "top", className: "tooltip-public" }
       );
       marker.on("click", () => {
@@ -154,7 +187,7 @@ export default function UbicacionesPublicPage() {
       });
       markersRef.current.push(marker);
     });
-  }, [list, selectedIds, mapReady]);
+  }, [list, selectedIds, mapReady, countsByLocation]);
 
   if (loading) {
     return (
@@ -170,6 +203,11 @@ export default function UbicacionesPublicPage() {
         <div className="px-4 py-4 max-w-2xl mx-auto">
           <h1 className="text-xl font-bold text-stone-900">Ubicaciones</h1>
           <p className="text-sm text-stone-500 mt-0.5">Tocá una para seleccionarla</p>
+          {totalPeople > 0 && (
+            <p className="text-sm text-amber-700 mt-1 font-medium">
+              {totalPeople} {totalPeople === 1 ? "persona marcó" : "personas marcaron"} ubicaciones
+            </p>
+          )}
           <input
             type="search"
             placeholder="Buscar por número, dirección o referencia..."
@@ -225,6 +263,11 @@ export default function UbicacionesPublicPage() {
                     >
                       {loc.status === "available" ? "Disponible" : "Alquilado"}
                     </span>
+                    {countsByLocation[loc.id] > 0 && (
+                      <p className="text-xs text-amber-700 mt-1.5 font-medium">
+                        {countsByLocation[loc.id]} {countsByLocation[loc.id] === 1 ? "persona marcó" : "personas marcaron"} este
+                      </p>
+                    )}
                   </div>
                   <span className="flex-shrink-0 text-2xl" aria-hidden>
                     {selected ? "✓" : "○"}

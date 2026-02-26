@@ -114,6 +114,27 @@ export default function UbicacionesPage() {
             Descargar PDF
           </button>
           <button
+            type="button"
+            onClick={async () => {
+              try {
+                const res = await fetch("/api/locations/export-pdf-gran-formato");
+                if (!res.ok) throw new Error(await res.text());
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `ubicaciones-gran-formato-${new Date().toISOString().slice(0, 10)}.pdf`;
+                a.click();
+                URL.revokeObjectURL(url);
+              } catch (e) {
+                alert("Error al generar el PDF gran formato: " + (e.message || e));
+              }
+            }}
+            className="px-4 py-2 bg-orange-700 text-white rounded-lg hover:bg-orange-800 inline-flex items-center gap-2"
+          >
+            PDF gran formato (A1)
+          </button>
+          <button
             onClick={() => {
               setForm({ address: "", reference: "", measurements: "", lat: "-31.5375", lng: "-68.5364" });
               setModal({});

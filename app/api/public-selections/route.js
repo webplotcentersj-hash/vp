@@ -3,24 +3,42 @@ import pool from "@/lib/db";
 
 /**
  * GET /api/public-selections?session=xxx
- * Devuelve los IDs de ubicaciones seleccionados para esa sesión.
+ * Devuelve: selectedIds (de esa sesión) y countsByLocation (cuántas personas marcaron cada ubicación).
  */
 export async function GET(request) {
   try {
     const sessionId = request.nextUrl?.searchParams?.get("session");
-    if (!sessionId || sessionId.length > 64) {
-      return NextResponse.json({ selectedIds: [] });
+    let selectedIds = [];
+    if (sessionId && sessionId.length <= 64) {
+      const [rows] = await pool.execute(
+        "SELECT location_id FROM public_location_selections WHERE session_id = ? ORDER BY location_id ASC",
+        [sessionId]
+      );
+      selectedIds = (rows || []).map((r) => Number(r.location_id)).filter(Number.isFinite);
     }
-    const [rows] = await pool.execute(
-      "SELECT location_id FROM public_location_selections WHERE session_id = ? ORDER BY location_id ASC",
-      [sessionId]
+
+    const [countRows] = await pool.execute(
+      "SELECT location_id, COUNT(DISTINCT session_id) AS total FROM public_location_selections GROUP BY location_id"
     );
-    const selectedIds = (rows || []).map((r) => Number(r.location_id)).filter(Number.isFinite);
-    return NextResponse.json({ selectedIds });
+    const countsByLocation = {};
+    (countRows || []).forEach((r) => {
+      const id = Number(r.location_id);
+      if (Number.isFinite(id)) countsByLocation[id] = Number(r.total) || 0;
+    });
+
+    const totalPeople = await pool.execute(
+      "SELECT COUNT(DISTINCT session_id) AS n FROM public_location_selections"
+    ).then(([[r]]) => Number(r?.n) || 0);
+
+    return NextResponse.json({
+      selectedIds,
+      countsByLocation,
+      totalSessionsWithSelections: totalPeople,
+    });
   } catch (e) {
     console.error("public-selections GET:", e);
     return NextResponse.json(
-      { error: "Error al obtener selecciones.", selectedIds: [] },
+      { error: "Error al obtener selecciones.", selectedIds: [], countsByLocation: {}, totalSessionsWithSelections: 0 },
       { status: 500 }
     );
   }
