@@ -1,7 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
+import dynamic from "next/dynamic";
 import { apiCall } from "@/lib/api";
+
+const EditableLocationMap = dynamic(() => import("@/components/EditableLocationMap"), { ssr: false });
 
 export default function UbicacionesPage() {
   const [list, setList] = useState([]);
@@ -82,6 +86,12 @@ export default function UbicacionesPage() {
             onChange={(e) => setSearch(e.target.value)}
             className="px-3 py-2 border border-stone-200 rounded-lg"
           />
+          <Link
+            href="/admin/ubicaciones/mapa"
+            className="px-4 py-2 bg-stone-600 text-white rounded-lg hover:bg-stone-700 inline-flex items-center gap-2"
+          >
+            Mapa pantalla completa
+          </Link>
           <button
             type="button"
             onClick={async () => {
@@ -105,7 +115,7 @@ export default function UbicacionesPage() {
           </button>
           <button
             onClick={() => {
-              setForm({ address: "", reference: "", measurements: "", lat: "", lng: "" });
+              setForm({ address: "", reference: "", measurements: "", lat: "-31.5375", lng: "-68.5364" });
               setModal({});
             }}
             className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
@@ -148,9 +158,9 @@ export default function UbicacionesPage() {
       </div>
 
       {modal !== null && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
-            <h2 className="text-xl font-bold mb-4">{modal.id ? "Editar" : "Nueva"} ubicación</h2>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full p-6 my-4">
+            <h2 className="text-xl font-bold mb-4 text-black">{modal.id ? "Editar" : "Nueva"} ubicación</h2>
             <form onSubmit={save} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-black mb-1">Dirección</label>
@@ -163,6 +173,15 @@ export default function UbicacionesPage() {
               <div>
                 <label className="block text-sm font-medium text-black mb-1">Medidas</label>
                 <input value={form.measurements} onChange={(e) => setForm((f) => ({ ...f, measurements: e.target.value }))} className="w-full px-3 py-2 border rounded-lg" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-black mb-1">Ubicación en el mapa</label>
+                <EditableLocationMap
+                  lat={form.lat}
+                  lng={form.lng}
+                  onMove={(newLat, newLng) => setForm((f) => ({ ...f, lat: String(newLat), lng: String(newLng) }))}
+                  height="280px"
+                />
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
