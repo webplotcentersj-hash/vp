@@ -10,29 +10,40 @@ export async function GET() {
         SUM(CASE WHEN status = 'draft' THEN 1 ELSE 0 END) as draft_campaigns
       FROM campaigns
     `);
-    const [[metrics]] = await pool.execute(`
-      SELECT SUM(cm.impressions) as total_impressions, SUM(cm.clicks) as total_clicks,
-        SUM(cm.conversions) as total_conversions,
-        CASE WHEN SUM(cm.impressions) > 0 THEN (SUM(cm.clicks) / SUM(cm.impressions)) * 100 ELSE 0 END as global_ctr,
-        CASE WHEN SUM(cm.clicks) > 0 THEN (SUM(cm.conversions) / SUM(cm.clicks)) * 100 ELSE 0 END as global_conversion_rate
+    const [[metricsFromTable]] = await pool.execute(`
+      SELECT SUM(cm.impressions) as total_impressions, SUM(cm.clicks) as m_clicks, SUM(cm.conversions) as m_conversions
       FROM campaign_metrics cm INNER JOIN campaigns c ON cm.campaign_id = c.id
     `);
+    const [[realClicksRow]] = await pool.execute("SELECT COUNT(*) as total FROM campaign_link_clicks");
+    const [[realConvRow]] = await pool.execute("SELECT COALESCE(SUM(conversions), 0) as total FROM campaign_links");
+    const realClicks = Number(realClicksRow?.total ?? 0);
+    const realConversions = Number(realConvRow?.total ?? 0);
+    const totalImpressions = Number(metricsFromTable?.total_impressions) || 0;
+    const metrics = {
+      total_impressions: totalImpressions,
+      total_clicks: realClicks,
+      total_conversions: realConversions,
+      global_ctr: totalImpressions > 0 ? (realClicks / totalImpressions) * 100 : 0,
+      global_conversion_rate: realClicks > 0 ? (realConversions / realClicks) * 100 : 0,
+    };
     const [[links]] = await pool.execute(`
       SELECT COUNT(*) as total_links, SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) as active_links
       FROM campaign_links
     `);
     const [topCampaigns] = await pool.execute(`
-      SELECT c.id, c.name, c.status, SUM(cm.conversions) as total_conversions, COUNT(DISTINCT cl.id) as num_locations
+      SELECT c.id, c.name, c.status,
+        (SELECT COUNT(*) FROM campaign_link_clicks clc WHERE clc.campaign_id = c.id) as real_clicks,
+        (SELECT COALESCE(SUM(conversions), 0) FROM campaign_links cl WHERE cl.campaign_id = c.id) as total_conversions,
+        (SELECT COUNT(DISTINCT location_id) FROM campaign_locations cloc WHERE cloc.campaign_id = c.id) as num_locations
       FROM campaigns c
-      LEFT JOIN campaign_metrics cm ON c.id = cm.campaign_id
-      LEFT JOIN campaign_locations cl ON c.id = cl.campaign_id
-      GROUP BY c.id ORDER BY total_conversions DESC LIMIT 5
+      ORDER BY real_clicks DESC
+      LIMIT 10
     `);
     const [trend30] = await pool.execute(`
-      SELECT DATE(cm.date) as date, SUM(cm.impressions) as impressions, SUM(cm.clicks) as clicks, SUM(cm.conversions) as conversions
-      FROM campaign_metrics cm
-      WHERE cm.date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
-      GROUP BY DATE(cm.date) ORDER BY date ASC
+      SELECT DATE(clc.clicked_at) as date, COUNT(*) as clicks
+      FROM campaign_link_clicks clc
+      WHERE clc.clicked_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+      GROUP BY DATE(clc.clicked_at) ORDER BY date ASC
     `);
     const [statusDistribution] = await pool.execute(`
       SELECT status, COUNT(*) as count FROM campaigns GROUP BY status

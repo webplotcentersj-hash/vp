@@ -2,18 +2,25 @@ import { NextResponse } from "next/server";
 import pool from "@/lib/db";
 
 function formatLocation(row) {
-  const { lat, lng, ...rest } = row;
+  const lat = row.lat != null ? Number(row.lat) : null;
+  const lng = row.lng != null ? Number(row.lng) : null;
   return {
-    ...rest,
     id: Number(row.id),
-    coordinates: { lat: Number(lat), lng: Number(lng) },
+    address: row.address ?? "",
+    reference: row.reference ?? "",
+    measurements: row.measurements ?? "",
+    status: row.status ?? "available",
+    lat,
+    lng,
+    coordinates: lat != null && lng != null && Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : undefined,
   };
 }
 
 export async function GET() {
   try {
-    // Todas las ubicaciones de la base de datos (tabla locations)
-    const [rows] = await pool.execute("SELECT * FROM locations ORDER BY id ASC");
+    const [rows] = await pool.execute(
+      "SELECT id, address, reference, measurements, lat, lng, status FROM locations ORDER BY id ASC"
+    );
     return NextResponse.json(rows.map(formatLocation));
   } catch (e) {
     console.error("Locations GET:", e);

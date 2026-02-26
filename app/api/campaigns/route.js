@@ -17,44 +17,52 @@ export async function GET() {
       GROUP BY c.id
       ORDER BY c.created_at DESC
     `);
-    const campaigns = [];
-    for (const row of rows) {
-      const [locs] = await poolCampaigns.execute(
-        "SELECT location_id, justification FROM campaign_locations WHERE campaign_id = ?",
-        [row.id]
+    if (rows.length === 0) return NextResponse.json([]);
+
+    const campaignIds = rows.map((r) => r.id);
+    const placeholders = campaignIds.map(() => "?").join(",");
+    const [allLocs] = await poolCampaigns.execute(
+      `SELECT campaign_id, location_id, justification FROM campaign_locations WHERE campaign_id IN (${placeholders})`,
+      campaignIds
+    );
+    const locationIds = [...new Set(allLocs.map((l) => l.location_id).filter(Boolean))];
+    const locationDetails = new Map();
+    if (locationIds.length > 0) {
+      const locPlaceholders = locationIds.map(() => "?").join(",");
+      const [locRows] = await poolMain.execute(
+        `SELECT id, address, reference, measurements, lat, lng FROM locations WHERE id IN (${locPlaceholders})`,
+        locationIds
       );
-      const locations = [];
-      for (const loc of locs) {
-        try {
-          const [[detail]] = await poolMain.execute(
-            "SELECT id, address, reference, measurements, lat, lng FROM locations WHERE id = ?",
-            [loc.location_id]
-          );
-          locations.push({
-            ...(detail || {}),
-            id: loc.location_id,
-            address: detail?.address ?? "Detalle no disponible",
-            reference: detail?.reference ?? "",
-            measurements: detail?.measurements ?? "",
-            lat: detail?.lat,
-            lng: detail?.lng,
-            coordinates: detail?.lat != null && detail?.lng != null ? { lat: Number(detail.lat), lng: Number(detail.lng) } : undefined,
-            justification: loc.justification,
-          });
-        } catch {
-          locations.push({
-            id: loc.location_id,
-            address: "Detalle no disponible",
-            reference: "",
-            measurements: "",
-            lat: null,
-            lng: null,
-            justification: loc.justification,
-          });
-        }
+      for (const d of locRows) {
+        locationDetails.set(Number(d.id), {
+          id: Number(d.id),
+          address: d.address ?? "Detalle no disponible",
+          reference: d.reference ?? "",
+          measurements: d.measurements ?? "",
+          lat: d.lat,
+          lng: d.lng,
+          coordinates: d.lat != null && d.lng != null ? { lat: Number(d.lat), lng: Number(d.lng) } : undefined,
+        });
       }
-      campaigns.push({ ...row, locations });
     }
+    const byCampaign = new Map();
+    for (const loc of allLocs) {
+      if (!byCampaign.has(loc.campaign_id)) byCampaign.set(loc.campaign_id, []);
+      const detail = locationDetails.get(Number(loc.location_id)) || {
+        id: loc.location_id,
+        address: "Detalle no disponible",
+        reference: "",
+        measurements: "",
+        lat: null,
+        lng: null,
+        coordinates: undefined,
+      };
+      byCampaign.get(loc.campaign_id).push({ ...detail, justification: loc.justification ?? "" });
+    }
+    const campaigns = rows.map((row) => ({
+      ...row,
+      locations: byCampaign.get(row.id) ?? [],
+    }));
     return NextResponse.json(campaigns);
   } catch (e) {
     console.error("Campaigns GET:", e);

@@ -57,7 +57,7 @@ export default function EditarCampanaPage() {
           startDate: (c.startDate || "").slice(0, 10),
           endDate: (c.endDate || "").slice(0, 10),
           budget: c.budget != null ? String(c.budget) : "",
-          locations: (c.locations || []).map((loc) => loc.id ?? loc.location_id),
+          locations: (c.locations || []).map((loc) => Number(loc.id ?? loc.location_id)).filter((n) => !Number.isNaN(n)),
         });
         // Todas las ubicaciones de la base de datos para el mapa
         setLocations(Array.isArray(locs) ? locs : []);
@@ -82,7 +82,7 @@ export default function EditarCampanaPage() {
         ...form,
         id: Number(id),
         budget: form.budget !== "" ? form.budget : 0,
-        locations: form.locations.map((locId) => ({ id: Number(locId), justification: "" })),
+        locations: form.locations.map((locId) => ({ id: Number(locId), justification: "" })).filter((l) => !Number.isNaN(l.id)),
       });
       setCampaign((c) => (c ? { ...c, ...form } : null));
     } catch (err) {
@@ -141,9 +141,10 @@ export default function EditarCampanaPage() {
   }
 
   function toggleLocation(locId) {
+    const id = Number(locId);
     setForm((f) => ({
       ...f,
-      locations: f.locations.includes(locId) ? f.locations.filter((x) => x !== locId) : [...f.locations, locId],
+      locations: f.locations.includes(id) ? f.locations.filter((x) => x !== id) : [...f.locations, id],
     }));
   }
 
@@ -229,8 +230,8 @@ export default function EditarCampanaPage() {
           <div className="space-y-2 max-h-40 overflow-y-auto border rounded-lg p-3 bg-stone-50">
             {locations.map((l) => (
               <label key={l.id} className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={form.locations.includes(l.id)} onChange={() => toggleLocation(l.id)} className="rounded border-stone-400 text-orange-600" />
-                <span>N° {l.id} - {l.address}</span>
+                <input type="checkbox" checked={form.locations.includes(Number(l.id))} onChange={() => toggleLocation(l.id)} className="rounded border-stone-400 text-orange-600" />
+                <span>N° {l.id} – {l.address || "Sin dirección"}</span>
               </label>
             ))}
           </div>
@@ -256,7 +257,7 @@ export default function EditarCampanaPage() {
                 <div className="min-w-0 flex-1">
                   <p className="font-medium text-black">{link.name}</p>
                   <p className="text-sm text-black truncate">Destino: {link.url}</p>
-                  <p className="text-xs text-black mt-1">Clicks: {link.total_clicks ?? 0}</p>
+                  <p className="text-xs text-black mt-1">Clicks: {link.total_clicks ?? link.clicks ?? 0}</p>
                   {url && (
                     <div className="flex items-center gap-2 mt-2 flex-wrap">
                       <input readOnly value={url} className="flex-1 min-w-0 max-w-md text-xs px-2 py-1.5 border rounded-lg bg-white" />
