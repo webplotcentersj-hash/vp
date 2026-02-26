@@ -20,11 +20,28 @@ export default function IAPage() {
     setMessages((m) => [...m, { role: "user", text }]);
     setLoading(true);
     try {
+      const [locationsData, statsData] = await Promise.all([
+        apiCall("locations").catch(() => []),
+        apiCall("dashboard-stats").catch(() => ({})),
+      ]);
+      const locations = Array.isArray(locationsData) ? locationsData : [];
+      const stats = statsData?.data || {};
+      const appData = {
+        locations: locations.map((l) => ({ id: l.id, address: l.address, reference: l.reference, status: l.status })),
+        campaigns: (stats.top_campaigns || []).map((c) => ({ name: c.name, status: c.status, real_clicks: c.real_clicks })),
+        metrics: {
+          total_clicks: stats.metrics?.total_clicks ?? 0,
+          total_conversions: stats.metrics?.total_conversions ?? 0,
+          total_campaigns: stats.campaigns?.total_campaigns ?? 0,
+        },
+      };
       const res = await apiCall("gemini", "POST", {
         messages: [...messages, { role: "user", text }],
+        appData,
       });
       const reply = res?.text || "No pude generar una respuesta.";
-      setMessages((m) => [...m, { role: "ia", text: reply }]);
+      const images = res?.images;
+      setMessages((m) => [...m, { role: "ia", text: reply, images: images || null }]);
     } catch (err) {
       setMessages((m) => [...m, { role: "ia", text: `Error: ${err.message}` }]);
     } finally {
@@ -34,9 +51,10 @@ export default function IAPage() {
 
   const suggestions = [
     "¿Cómo creo una campaña nueva?",
-    "¿Cómo agrego un link trackable por chupete?",
-    "¿Dónde veo las métricas de clicks?",
-    "¿Cómo descargo el QR en buena calidad?",
+    "Dame ideas creativas para una campaña de verano",
+    "Describí una imagen para un afiche de promoción",
+    "¿En qué ubicaciones me conviene poner esta campaña?",
+    "Analizá mis clicks y dame recomendaciones",
   ];
 
   return (
@@ -82,6 +100,18 @@ export default function IAPage() {
               }`}
             >
               <p className="whitespace-pre-wrap text-sm">{msg.text}</p>
+              {msg.images?.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {msg.images.map((img, j) => (
+                    <img
+                      key={j}
+                      src={`data:${img.mimeType};base64,${img.base64}`}
+                      alt="Generada por PlotBot"
+                      className="max-w-full rounded-lg border border-stone-200 shadow-sm max-h-64 object-contain"
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           ))}
           {loading && (
