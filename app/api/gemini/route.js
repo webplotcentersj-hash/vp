@@ -2,7 +2,7 @@ import { GoogleGenAI } from "@google/genai";
 import { NextResponse } from "next/server";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-const MODEL = process.env.GEMINI_MODEL || "gemini-2.0-flash-exp";
+const MODEL = process.env.GEMINI_MODEL || "gemini-3-flash-preview";
 
 const DEFAULT_SYSTEM =
   "Eres PlotBot, asistente de Vía Pública Plot Center. La app gestiona campañas publicitarias, ubicaciones (chupetes), links trackables, QR y métricas de clicks. Ayudás con dudas sobre campañas, ubicaciones, métricas, cómo crear links o ver estadísticas. Responde de forma breve y útil en español.";
