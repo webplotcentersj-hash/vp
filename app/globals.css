@@ -24,3 +24,31 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Página pública de ubicaciones: marcadores en mapa */
+.marker-pin-public {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  background: #78716c;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+.marker-pin-public.marker-selected {
+  background: #f59e0b;
+  border-color: #fff;
+}
+.tooltip-public {
+  font-size: 13px;
+  padding: 6px 10px;
+}
+.safe-area-pb {
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
