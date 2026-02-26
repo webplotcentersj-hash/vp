@@ -157,22 +157,26 @@ export default function UbicacionesPublicPage() {
     }
   }
 
-  // Inicializar mapa arriba (cuando hay lista y contenedor)
+  // Inicializar mapa cuando hay lista (con retraso para que el contenedor tenga tamaño y no se dibuje mal)
   useEffect(() => {
     const withCoords = list.filter(
       (l) =>
         (l.coordinates?.lat != null && l.coordinates?.lng != null) ||
         (l.lat != null && l.lng != null)
     );
-    if (withCoords.length === 0 || !mapContainerRef.current || typeof window === "undefined") return;
+    if (withCoords.length === 0 || typeof window === "undefined") return;
     let mounted = true;
-    (async () => {
+
+    const init = async () => {
+      if (!mounted || !mapContainerRef.current || mapRef.current) return;
       const L = (await import("leaflet")).default;
       if (!mounted || !mapContainerRef.current || mapRef.current) return;
       LRef.current = L;
-      const map = L.map(mapContainerRef.current).setView(DEFAULT_CENTER, DEFAULT_ZOOM);
+      const map = L.map(mapContainerRef.current, {
+        zoomControl: true,
+      }).setView(DEFAULT_CENTER, DEFAULT_ZOOM);
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: "© OpenStreetMap",
+        attribution: "© OSM",
         maxZoom: 19,
       }).addTo(map);
       mapRef.current = map;
@@ -182,8 +186,15 @@ export default function UbicacionesPublicPage() {
       ]).filter(([a, b]) => Number.isFinite(a) && Number.isFinite(b));
       if (bounds.length > 0) map.fitBounds(bounds, { padding: [24, 24], maxZoom: 15 });
       if (mounted) setMapReady(true);
-    })();
+      requestAnimationFrame(() => {
+        if (mapRef.current) mapRef.current.invalidateSize();
+        setTimeout(() => { if (mapRef.current) mapRef.current.invalidateSize(); }, 200);
+      });
+    };
+
+    const t = setTimeout(init, 150);
     return () => {
+      clearTimeout(t);
       mounted = false;
       setMapReady(false);
       markersRef.current.forEach((m) => {
@@ -272,10 +283,18 @@ export default function UbicacionesPublicPage() {
       <main className="flex-1 flex flex-col px-4 py-4 max-w-2xl mx-auto w-full">
         {list.length > 0 && (
           <div className="mb-4 flex-shrink-0">
-            <div
-              ref={mapContainerRef}
-              className="w-full rounded-xl overflow-hidden border border-stone-200 bg-stone-200 h-[280px]"
-            />
+            <div className="relative w-full rounded-xl overflow-hidden border border-stone-200 bg-stone-200 min-h-[280px]" style={{ height: 280 }}>
+              <div
+                ref={mapContainerRef}
+                className="absolute inset-0 w-full h-full"
+                style={{ minHeight: 280 }}
+              />
+              {!mapReady && (
+                <div className="absolute inset-0 flex items-center justify-center bg-stone-200 text-stone-500 text-sm">
+                  Cargando mapa…
+                </div>
+              )}
+            </div>
             <button
               type="button"
               onClick={downloadMapAsPdf}

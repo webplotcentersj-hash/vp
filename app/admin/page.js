@@ -17,15 +17,48 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  useEffect(() => {
+  function loadStats() {
+    setLoading(true);
+    setError("");
     apiCall("dashboard-stats")
-      .then((res) => setStats(res))
-      .catch((e) => setError(e.message))
+      .then((res) => { setStats(res); setError(""); })
+      .catch((e) => {
+        let msg = e?.message || "Error de conexión";
+        try {
+          const parsed = JSON.parse(msg);
+          if (parsed.message) msg = parsed.message;
+          if (parsed.error && (parsed.error.includes("ETIMEDOUT") || parsed.error.includes("ECONNREFUSED"))) {
+            msg = "No se pudo conectar al servidor de estadísticas. Revisá que la base de datos de campañas esté accesible.";
+          }
+        } catch (_) {}
+        setError(msg);
+      })
       .finally(() => setLoading(false));
+  }
+
+  useEffect(() => {
+    loadStats();
   }, []);
 
-  if (loading) return <div className="text-center py-12 text-black">Cargando...</div>;
-  if (error) return <div className="text-red-600 p-4">Error: {error}</div>;
+  if (loading && !stats) return <div className="text-center py-12 text-black">Cargando...</div>;
+  if (error && !stats) {
+    return (
+      <div className="space-y-4">
+        <h1 className="text-2xl font-bold text-black">Dashboard – Campañas</h1>
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-800">
+          <p className="font-medium">{error}</p>
+          <p className="text-sm mt-2 text-red-700">Si la base de datos de campañas está en otro servidor, comprobá que sea accesible (red, firewall, .env).</p>
+          <button
+            type="button"
+            onClick={loadStats}
+            className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+          >
+            Reintentar
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const s = stats?.data || {};
   const campaigns = s.campaigns || {};

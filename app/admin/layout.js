@@ -37,8 +37,8 @@ export default function AdminLayout({ children }) {
   if (!checkDone || !email) return null;
 
   return (
-    <div className="flex min-h-screen bg-stone-100">
-      <aside className="w-64 bg-stone-800 text-white flex flex-col border-r border-white/10">
+    <div className="flex min-h-screen bg-stone-100 text-stone-900">
+      <aside className="w-64 flex-shrink-0 bg-stone-800 text-white flex flex-col border-r border-white/10">
         <div className="p-4 border-b border-white/10">
           <h2 className="font-bold text-stone-100">Plot Center</h2>
         </div>
@@ -66,7 +66,7 @@ export default function AdminLayout({ children }) {
           </button>
         </div>
       </aside>
-      <main className="flex-1 p-6 overflow-auto">{children}</main>
+      <main className="flex-1 min-w-0 p-6 overflow-auto bg-stone-100">{children}</main>
     </div>
   );
 }
