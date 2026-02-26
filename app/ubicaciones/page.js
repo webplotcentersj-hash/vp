@@ -39,6 +39,7 @@ export default function UbicacionesPublicPage() {
   const [totalPeople, setTotalPeople] = useState(0);
   const [sessionId, setSessionId] = useState(null);
   const [mapReady, setMapReady] = useState(false);
+  const [downloadingMapPdf, setDownloadingMapPdf] = useState(false);
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
   const markersRef = useRef([]);
@@ -109,6 +110,53 @@ export default function UbicacionesPublicPage() {
   }
   toggleSelectRef.current = toggleSelect;
 
+  async function downloadMapAsPdf() {
+    const container = mapContainerRef.current;
+    if (!container) return;
+    setDownloadingMapPdf(true);
+    try {
+      const html2canvas = (await import("html2canvas")).default;
+      const { PDFDocument } = await import("pdf-lib");
+      const canvas = await html2canvas(container, {
+        useCORS: true,
+        allowTaint: true,
+        scale: 2,
+        logging: false,
+      });
+      const dataUrl = canvas.toDataURL("image/png");
+      const base64 = dataUrl.split(",")[1] || dataUrl;
+      const binary = atob(base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+
+      const doc = await PDFDocument.create();
+      const pageWidth = 2384;
+      const pageHeight = 1684;
+      const page = doc.addPage([pageWidth, pageHeight]);
+      const img = await doc.embedPng(bytes);
+      const r = Math.min(pageWidth / img.width, pageHeight / img.height);
+      const w = img.width * r;
+      const h = img.height * r;
+      const x = (pageWidth - w) / 2;
+      const y = pageHeight - h;
+      page.drawImage(img, { x, y, width: w, height: h });
+
+      const pdfBytes = await doc.save();
+      const blob = new Blob([pdfBytes], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `mapa-ubicaciones-${new Date().toISOString().slice(0, 10)}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error(e);
+      alert("No se pudo generar el PDF del mapa. " + (e?.message || ""));
+    } finally {
+      setDownloadingMapPdf(false);
+    }
+  }
+
   // Inicializar mapa arriba (cuando hay lista y contenedor)
   useEffect(() => {
     const withCoords = list.filter(
@@ -169,9 +217,11 @@ export default function UbicacionesPublicPage() {
       const lng = Number(loc.coordinates?.lng ?? loc.lng);
       if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
       const selected = selectedIds.has(loc.id);
+      const markedByOthers = (countsByLocation[loc.id] || 0) > 0 && !selected;
+      const markerClass = selected ? "marker-selected" : markedByOthers ? "marker-marked-by-others" : "";
       const icon = L.divIcon({
         className: "public-marker",
-        html: `<span class="marker-pin-public ${selected ? "marker-selected" : ""}">${loc.id}</span>`,
+        html: `<span class="marker-pin-public ${markerClass}">${loc.id}</span>`,
         iconSize: [36, 44],
         iconAnchor: [18, 44],
       });
@@ -221,15 +271,26 @@ export default function UbicacionesPublicPage() {
 
       <main className="flex-1 flex flex-col px-4 py-4 max-w-2xl mx-auto w-full">
         {list.length > 0 && (
-          <div
-            ref={mapContainerRef}
-            className="w-full rounded-xl overflow-hidden border border-stone-200 bg-stone-200 h-[280px] mb-4 flex-shrink-0"
-          />
+          <div className="mb-4 flex-shrink-0">
+            <div
+              ref={mapContainerRef}
+              className="w-full rounded-xl overflow-hidden border border-stone-200 bg-stone-200 h-[280px]"
+            />
+            <button
+              type="button"
+              onClick={downloadMapAsPdf}
+              disabled={!mapReady || downloadingMapPdf}
+              className="mt-2 w-full py-2.5 px-4 rounded-xl bg-stone-800 text-white text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-stone-900"
+            >
+              {downloadingMapPdf ? "Generando PDF…" : "Descargar mapa en PDF (gran formato)"}
+            </button>
+          </div>
         )}
 
         <div className="space-y-3 flex-1">
           {filtered.map((loc) => {
             const selected = selectedIds.has(loc.id);
+            const markedByOthers = (countsByLocation[loc.id] || 0) > 0 && !selected;
             return (
               <button
                 key={loc.id}
@@ -238,13 +299,15 @@ export default function UbicacionesPublicPage() {
                 className={`w-full text-left rounded-xl p-4 border-2 transition-all touch-manipulation active:scale-[0.99] ${
                   selected
                     ? "bg-amber-100 border-amber-500 shadow-md"
-                    : "bg-white border-stone-200 hover:border-stone-300 hover:bg-stone-50"
+                    : markedByOthers
+                      ? "bg-sky-100 border-sky-400 shadow-sm"
+                      : "bg-white border-stone-200 hover:border-stone-300 hover:bg-stone-50"
                 }`}
               >
                 <div className="flex items-start gap-3">
                   <span
                     className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold ${
-                      selected ? "bg-amber-500 text-white" : "bg-stone-200 text-stone-700"
+                      selected ? "bg-amber-500 text-white" : markedByOthers ? "bg-sky-500 text-white" : "bg-stone-200 text-stone-700"
                     }`}
                   >
                     {loc.id}
@@ -270,7 +333,7 @@ export default function UbicacionesPublicPage() {
                     )}
                   </div>
                   <span className="flex-shrink-0 text-2xl" aria-hidden>
-                    {selected ? "✓" : "○"}
+                    {selected ? "✓" : markedByOthers ? "·" : "○"}
                   </span>
                 </div>
               </button>

@@ -16,6 +16,7 @@ export default function MapaPantallaCompletaPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searching, setSearching] = useState(false);
   const [mapReady, setMapReady] = useState(false);
+  const [downloadingMapPdf, setDownloadingMapPdf] = useState(false);
   const [filterNumber, setFilterNumber] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const filteredLocations = locations.filter((loc) => {
@@ -133,6 +134,48 @@ export default function MapaPantallaCompletaPage() {
     }
   }
 
+  async function downloadMapAsPdf() {
+    if (!containerRef.current) return;
+    setDownloadingMapPdf(true);
+    try {
+      const html2canvas = (await import("html2canvas")).default;
+      const { PDFDocument } = await import("pdf-lib");
+      const canvas = await html2canvas(containerRef.current, {
+        useCORS: true,
+        allowTaint: true,
+        scale: 2,
+        logging: false,
+      });
+      const dataUrl = canvas.toDataURL("image/png");
+      const base64 = dataUrl.split(",")[1] || dataUrl;
+      const binary = atob(base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      const doc = await PDFDocument.create();
+      const pageWidth = 2384;
+      const pageHeight = 1684;
+      const page = doc.addPage([pageWidth, pageHeight]);
+      const img = await doc.embedPng(bytes);
+      const r = Math.min(pageWidth / img.width, pageHeight / img.height);
+      const w = img.width * r;
+      const h = img.height * r;
+      page.drawImage(img, { x: (pageWidth - w) / 2, y: pageHeight - h, width: w, height: h });
+      const pdfBytes = await doc.save();
+      const blob = new Blob([pdfBytes], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `mapa-ubicaciones-${new Date().toISOString().slice(0, 10)}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error(e);
+      alert("No se pudo generar el PDF del mapa. " + (e?.message || ""));
+    } finally {
+      setDownloadingMapPdf(false);
+    }
+  }
+
   return (
     <div className="fixed inset-0 flex flex-col bg-stone-100 z-40">
       <div className="flex flex-wrap items-center gap-2 p-3 bg-white border-b border-stone-200 shadow-sm flex-shrink-0">
@@ -184,6 +227,14 @@ export default function MapaPantallaCompletaPage() {
         <span className="text-sm text-black">
           {filteredLocations.length} de {locations.length} ubicaciones
         </span>
+        <button
+          type="button"
+          onClick={downloadMapAsPdf}
+          disabled={!mapReady || downloadingMapPdf}
+          className="px-4 py-2 bg-stone-700 text-white rounded-lg hover:bg-stone-800 disabled:opacity-50 text-sm font-medium"
+        >
+          {downloadingMapPdf ? "Generando…" : "Descargar mapa en PDF"}
+        </button>
       </div>
       <div ref={containerRef} className="flex-1 w-full min-h-0" />
       <style jsx global>{`

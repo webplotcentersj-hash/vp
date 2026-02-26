@@ -48,6 +48,10 @@ body {
   background: #f59e0b;
   border-color: #fff;
 }
+.marker-pin-public.marker-marked-by-others {
+  background: #0ea5e9;
+  border-color: #fff;
+}
 .tooltip-public {
   font-size: 13px;
   padding: 6px 10px;
