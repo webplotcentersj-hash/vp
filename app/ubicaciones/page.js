@@ -22,11 +22,12 @@ export default function UbicacionesPublicPage() {
   const [search, setSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [sessionId, setSessionId] = useState(null);
-  const [showMap, setShowMap] = useState(false);
+  const [mapReady, setMapReady] = useState(false);
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
   const markersRef = useRef([]);
   const LRef = useRef(null);
+  const toggleSelectRef = useRef(() => {});
 
   useEffect(() => {
     fetch("/api/locations")
@@ -75,52 +76,37 @@ export default function UbicacionesPublicPage() {
       return next;
     });
   }
+  toggleSelectRef.current = toggleSelect;
 
-  // Mapa solo cuando showMap y hay contenedor (client-side)
+  // Inicializar mapa arriba (cuando hay lista y contenedor)
   useEffect(() => {
-    if (!showMap || !mapContainerRef.current || typeof window === "undefined") return;
+    const withCoords = list.filter(
+      (l) =>
+        (l.coordinates?.lat != null && l.coordinates?.lng != null) ||
+        (l.lat != null && l.lng != null)
+    );
+    if (withCoords.length === 0 || !mapContainerRef.current || typeof window === "undefined") return;
     let mounted = true;
     (async () => {
       const L = (await import("leaflet")).default;
-      if (!mounted || !mapContainerRef.current) return;
+      if (!mounted || !mapContainerRef.current || mapRef.current) return;
       LRef.current = L;
-      if (mapRef.current) return;
       const map = L.map(mapContainerRef.current).setView(DEFAULT_CENTER, DEFAULT_ZOOM);
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution: "© OpenStreetMap",
         maxZoom: 19,
       }).addTo(map);
       mapRef.current = map;
-
-      const withCoords = list.filter(
-        (loc) =>
-          (loc.coordinates?.lat != null && loc.coordinates?.lng != null) ||
-          (loc.lat != null && loc.lng != null)
-      );
-      const bounds = [];
-      withCoords.forEach((loc) => {
-        const lat = Number(loc.coordinates?.lat ?? loc.lat);
-        const lng = Number(loc.coordinates?.lng ?? loc.lng);
-        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
-        bounds.push([lat, lng]);
-        const selected = selectedIds.has(loc.id);
-        const icon = L.divIcon({
-          className: "public-marker",
-          html: `<span class="marker-pin-public ${selected ? "marker-selected" : ""}">${loc.id}</span>`,
-          iconSize: [36, 44],
-          iconAnchor: [18, 44],
-        });
-        const marker = L.marker([lat, lng], { icon }).addTo(map);
-        marker.bindTooltip(
-          `<strong>N° ${loc.id}</strong><br/>${(loc.address || "").replace(/</g, "&lt;")}`,
-          { permanent: false, direction: "top", className: "tooltip-public" }
-        );
-        markersRef.current.push(marker);
-      });
+      const bounds = withCoords.map((l) => [
+        Number(l.coordinates?.lat ?? l.lat),
+        Number(l.coordinates?.lng ?? l.lng),
+      ]).filter(([a, b]) => Number.isFinite(a) && Number.isFinite(b));
       if (bounds.length > 0) map.fitBounds(bounds, { padding: [24, 24], maxZoom: 15 });
+      if (mounted) setMapReady(true);
     })();
     return () => {
       mounted = false;
+      setMapReady(false);
       markersRef.current.forEach((m) => {
         try { m.remove(); } catch (_) {}
       });
@@ -131,22 +117,22 @@ export default function UbicacionesPublicPage() {
       }
       LRef.current = null;
     };
-  }, [showMap]);
+  }, [list.length]);
 
-  // Actualizar marcadores cuando cambia selectedIds (solo si el mapa ya está)
+  // Dibujar marcadores (y actualizar al cambiar selección); clic en marcador = toggle
   useEffect(() => {
-    if (!showMap || !mapRef.current || !LRef.current || list.length === 0) return;
+    const withCoords = list.filter(
+      (l) =>
+        (l.coordinates?.lat != null && l.coordinates?.lng != null) ||
+        (l.lat != null && l.lng != null)
+    );
+    if (!mapReady || !mapRef.current || !LRef.current || withCoords.length === 0) return;
     const L = LRef.current;
     const map = mapRef.current;
     markersRef.current.forEach((m) => {
       try { m.remove(); } catch (_) {}
     });
     markersRef.current = [];
-    const withCoords = list.filter(
-      (loc) =>
-        (loc.coordinates?.lat != null && loc.coordinates?.lng != null) ||
-        (loc.lat != null && loc.lng != null)
-    );
     withCoords.forEach((loc) => {
       const lat = Number(loc.coordinates?.lat ?? loc.lat);
       const lng = Number(loc.coordinates?.lng ?? loc.lng);
@@ -160,12 +146,15 @@ export default function UbicacionesPublicPage() {
       });
       const marker = L.marker([lat, lng], { icon }).addTo(map);
       marker.bindTooltip(
-        `<strong>N° ${loc.id}</strong><br/>${(loc.address || "").replace(/</g, "&lt;")}`,
+        `<strong>N° ${loc.id}</strong><br/>${(loc.address || "").replace(/</g, "&lt;")}<br/><em>Tocá para seleccionar</em>`,
         { permanent: false, direction: "top", className: "tooltip-public" }
       );
+      marker.on("click", () => {
+        if (toggleSelectRef.current) toggleSelectRef.current(loc.id);
+      });
       markersRef.current.push(marker);
     });
-  }, [showMap, selectedIds, list]);
+  }, [list, selectedIds, mapReady]);
 
   if (loading) {
     return (
@@ -192,8 +181,15 @@ export default function UbicacionesPublicPage() {
         </div>
       </header>
 
-      <main className="flex-1 px-4 py-4 max-w-2xl mx-auto w-full">
-        <div className="space-y-3">
+      <main className="flex-1 flex flex-col px-4 py-4 max-w-2xl mx-auto w-full">
+        {list.length > 0 && (
+          <div
+            ref={mapContainerRef}
+            className="w-full rounded-xl overflow-hidden border border-stone-200 bg-stone-200 h-[280px] mb-4 flex-shrink-0"
+          />
+        )}
+
+        <div className="space-y-3 flex-1">
           {filtered.map((loc) => {
             const selected = selectedIds.has(loc.id);
             return (
@@ -241,24 +237,6 @@ export default function UbicacionesPublicPage() {
 
         {filtered.length === 0 && (
           <p className="text-center text-stone-500 py-8">No hay ubicaciones que coincidan con la búsqueda.</p>
-        )}
-
-        {list.length > 0 && (
-          <div className="mt-6">
-            <button
-              type="button"
-              onClick={() => setShowMap((v) => !v)}
-              className="w-full py-3 px-4 rounded-xl bg-stone-800 text-white font-medium active:bg-stone-900"
-            >
-              {showMap ? "Ocultar mapa" : "Ver en mapa"}
-            </button>
-            {showMap && (
-              <div
-                ref={mapContainerRef}
-                className="mt-4 rounded-xl overflow-hidden border border-stone-200 bg-stone-200 h-[320px]"
-              />
-            )}
-          </div>
         )}
       </main>
 

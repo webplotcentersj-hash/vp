@@ -26,6 +26,9 @@ body {
 }
 
 /* Página pública de ubicaciones: marcadores en mapa */
+.public-marker {
+  cursor: pointer;
+}
 .marker-pin-public {
   display: flex;
   align-items: center;
