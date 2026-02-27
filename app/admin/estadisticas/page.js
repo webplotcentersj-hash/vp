@@ -1,16 +1,31 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { apiCall } from "@/lib/api";
 
+const DEFAULT_CENTER = [-31.5375, -68.5364];
+const DEFAULT_ZOOM = 12;
+const LIVE_REFRESH_MS = 30000;
+
 const statusLabels = { draft: "Borrador", active: "Activa", paused: "Pausada", completed: "Completada" };
 const statusColors = { draft: "bg-stone-200", active: "bg-green-500", paused: "bg-amber-500", completed: "bg-blue-500" };
+
+function getTier(index, total) {
+  if (total <= 0) return 0;
+  return Math.min(4, Math.floor((1 - index / total) * 5));
+}
 
 export default function EstadisticasPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [mapReady, setMapReady] = useState(false);
+  const [readyToInitMap, setReadyToInitMap] = useState(false);
+  const mapContainerRef = useRef(null);
+  const mapRef = useRef(null);
+  const markersRef = useRef([]);
+  const LRef = useRef(null);
 
   function load() {
     setLoading(true);
@@ -32,6 +47,84 @@ export default function EstadisticasPage() {
   }
 
   useEffect(() => { load(); }, []);
+
+  const locsWithCoords = (data?.campaigns?.top_locations_by_clicks || []).filter(
+    (x) => x.lat != null && x.lng != null && Number.isFinite(Number(x.lat)) && Number.isFinite(Number(x.lng))
+  );
+
+  useEffect(() => {
+    const n = (data?.campaigns?.top_locations_by_clicks || []).filter(
+      (x) => x.lat != null && x.lng != null && Number.isFinite(Number(x.lat)) && Number.isFinite(Number(x.lng))
+    ).length;
+    if (n > 0) setReadyToInitMap(true);
+  }, [data]);
+
+  useEffect(() => {
+    if (!readyToInitMap || !mapContainerRef.current || mapRef.current) return;
+    (async () => {
+      const L = (await import("leaflet")).default;
+      LRef.current = L;
+      if (!mapContainerRef.current || mapRef.current) return;
+      const map = L.map(mapContainerRef.current).setView(DEFAULT_CENTER, DEFAULT_ZOOM);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        maxZoom: 19,
+      }).addTo(map);
+      mapRef.current = map;
+      setMapReady(true);
+    })();
+    return () => {
+      markersRef.current.forEach((m) => { try { m.remove(); } catch (_) {} });
+      markersRef.current = [];
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
+      LRef.current = null;
+      setMapReady(false);
+    };
+  }, [readyToInitMap]);
+
+  useEffect(() => {
+    const withCoords = (data?.campaigns?.top_locations_by_clicks || []).filter(
+      (x) => x.lat != null && x.lng != null && Number.isFinite(Number(x.lat)) && Number.isFinite(Number(x.lng))
+    );
+    if (!mapReady || !mapRef.current || !LRef.current || withCoords.length === 0) return;
+    const L = LRef.current;
+    const map = mapRef.current;
+    markersRef.current.forEach((m) => { try { m.remove(); } catch (_) {} });
+    markersRef.current = [];
+    const sorted = [...withCoords].sort((a, b) => Number(b.clicks ?? 0) - Number(a.clicks ?? 0));
+    const bounds = [];
+    sorted.forEach((loc, i) => {
+      const lat = Number(loc.lat);
+      const lng = Number(loc.lng);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+      bounds.push([lat, lng]);
+      const tier = getTier(i, sorted.length);
+      const icon = L.divIcon({
+        className: "stats-marker-wrap",
+        html: `<span class="stats-marker stats-marker-tier-${tier}">${loc.location_id}</span>`,
+        iconSize: [40, 48],
+        iconAnchor: [20, 48],
+      });
+      const marker = L.marker([lat, lng], { icon }).addTo(map);
+      const addr = (loc.address || "Sin dirección").replace(/</g, "&lt;");
+      marker.bindTooltip(
+        `<strong>Chupete N° ${loc.location_id}</strong><br/>${addr}<br/><strong>${Number(loc.clicks ?? 0).toLocaleString()} clicks</strong>`,
+        { permanent: false, direction: "top", offset: [0, -28], className: "tooltip-stats" }
+      );
+      markersRef.current.push(marker);
+    });
+    if (bounds.length > 0) {
+      map.fitBounds(bounds, { padding: [24, 24], maxZoom: 15 });
+    }
+  }, [mapReady, data]);
+
+  useEffect(() => {
+    const id = setInterval(load, LIVE_REFRESH_MS);
+    return () => clearInterval(id);
+  }, []);
 
   if (loading && !data) return <div className="py-12 text-black text-center">Cargando...</div>;
   if (error && !data) {
@@ -224,6 +317,47 @@ export default function EstadisticasPage() {
             <div className="mt-4 pt-4 border-t border-stone-100 text-center">
               <Link href="/admin/ubicaciones" className="inline-flex items-center gap-1 text-sky-600 hover:text-sky-700 font-medium text-sm">Ver todas las ubicaciones →</Link>
             </div>
+          </div>
+        </section>
+      )}
+
+      {/* Mapa en tiempo real – Clicks por ubicación */}
+      {locsWithCoords.length > 0 && (
+        <section className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
+          <div className="px-6 py-4 bg-gradient-to-r from-emerald-50 via-teal-50 to-cyan-50 border-b border-stone-100 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-bold text-black flex items-center gap-2">
+                Mapa de clicks por ubicación
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-700 text-xs font-bold animate-pulse">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                  En vivo
+                </span>
+              </h2>
+              <p className="text-sm text-stone-500 mt-0.5">Colores por nivel de clicks · Se actualiza cada 30 s</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-3 text-xs font-medium text-stone-600">
+              <span className="flex items-center gap-1.5">
+                <span className="w-3 h-3 rounded-full bg-green-500 shadow-sm" /> Menos
+              </span>
+              <span className="w-3 h-3 rounded-full bg-yellow-500 shadow-sm" />
+              <span className="w-3 h-3 rounded-full bg-orange-500 shadow-sm" />
+              <span className="w-3 h-3 rounded-full bg-red-500 shadow-sm" />
+              <span className="flex items-center gap-1.5">
+                <span className="w-3 h-3 rounded-full bg-violet-500 shadow-sm" /> Más clicks
+              </span>
+            </div>
+          </div>
+          <div className="relative">
+            <div
+              ref={mapContainerRef}
+              className="w-full bg-stone-200"
+              style={{ minHeight: 360, height: 360 }}
+            />
+            {!mapReady && (
+              <div className="absolute inset-0 flex items-center justify-center bg-stone-200/90 text-stone-600 font-medium">
+                Cargando mapa…
+              </div>
+            )}
           </div>
         </section>
       )}

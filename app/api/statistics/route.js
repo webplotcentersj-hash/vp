@@ -78,9 +78,37 @@ async function getCampaignsStats() {
       WHERE cl.location_id IS NOT NULL
       GROUP BY cl.location_id
       ORDER BY clicks DESC
-      LIMIT 30
+      LIMIT 50
     `);
-    topLocationsByClicks = rows || [];
+    const raw = rows || [];
+    if (raw.length > 0) {
+      const ids = raw.map((r) => r.location_id).filter(Boolean);
+      let details = [];
+      try {
+        const placeholders = ids.map(() => "?").join(",");
+        const [locRows] = await poolMain.execute(
+          `SELECT id, address, lat, lng FROM locations WHERE id IN (${placeholders})`,
+          ids
+        );
+        const byId = {};
+        (locRows || []).forEach((r) => {
+          const lat = r.lat != null ? Number(r.lat) : null;
+          const lng = r.lng != null ? Number(r.lng) : null;
+          if (Number.isFinite(lat) && Number.isFinite(lng)) {
+            byId[r.id] = { address: r.address || "", lat, lng };
+          }
+        });
+        topLocationsByClicks = raw.map((r) => ({
+          location_id: r.location_id,
+          clicks: Number(r.clicks ?? 0),
+          address: byId[r.location_id]?.address,
+          lat: byId[r.location_id]?.lat,
+          lng: byId[r.location_id]?.lng,
+        })).filter((x) => x.lat != null && x.lng != null);
+      } catch (_) {
+        topLocationsByClicks = raw.map((r) => ({ location_id: r.location_id, clicks: Number(r.clicks ?? 0) }));
+      }
+    }
   } catch (_) {}
 
   const [[links]] = await pool.execute(`
