@@ -144,6 +144,7 @@ export default function EstadisticasPage() {
   const metrics = camp.metrics || {};
   const topCampaigns = camp.top_campaigns || [];
   const trend30 = camp.trend_30_days || [];
+  const trendByHour = camp.trend_by_hour || [];
   const statusDist = camp.status_distribution || [];
   const topLocClicks = camp.top_locations_by_clicks || [];
 
@@ -156,6 +157,7 @@ export default function EstadisticasPage() {
   const activeLinks = Number(camp.links?.active_links ?? 0);
   const maxClicks = Math.max(1, ...topCampaigns.map((c) => Number(c.real_clicks ?? 0)));
   const maxTrend = Math.max(1, ...trend30.map((d) => Number(d.clicks ?? 0)));
+  const maxTrendHour = Math.max(1, ...trendByHour.map((d) => Number(d.clicks ?? 0)));
   const totalLoc = Number(loc.total ?? 0);
   const locAvailable = Number(loc.available ?? 0);
   const locRented = Number(loc.rented ?? 0);
@@ -249,6 +251,35 @@ export default function EstadisticasPage() {
                       />
                     </div>
                     <span className="text-[10px] text-stone-500 mt-2 font-medium">{d.date ? new Date(d.date).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" }) : ""}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Clicks por hora – últimas 24 h */}
+      {trendByHour.length > 0 && (
+        <section className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
+          <div className="px-6 py-4 bg-gradient-to-r from-teal-50 to-cyan-50 border-b border-stone-100">
+            <h2 className="text-lg font-bold text-black">Clicks por hora</h2>
+            <p className="text-sm text-stone-500 mt-0.5">Últimas 24 horas</p>
+          </div>
+          <div className="p-6 overflow-x-auto">
+            <div className="flex items-end gap-1 min-w-max pb-2" style={{ height: 140 }}>
+              {trendByHour.map((d, i) => {
+                const h = maxTrendHour > 0 ? Math.max(6, (Number(d.clicks ?? 0) / maxTrendHour) * 100) : 6;
+                return (
+                  <div key={`${d.hour_key}-${i}`} className="flex flex-col items-center flex-shrink-0 group" style={{ width: 28 }}>
+                    <div className="w-full flex flex-col justify-end flex-1 min-h-[72px]" style={{ height: 88 }}>
+                      <div
+                        className="w-full min-w-[12px] rounded-t-md bg-gradient-to-t from-teal-500 to-cyan-400 shadow-md hover:from-teal-600 hover:to-cyan-500 transition-all duration-200"
+                        style={{ height: `${h}%` }}
+                        title={`${d.hour_label}: ${d.clicks ?? 0} clicks`}
+                      />
+                    </div>
+                    <span className="text-[10px] text-stone-500 mt-1.5 font-medium truncate w-full text-center">{d.hour_label}</span>
                   </div>
                 );
               })}

@@ -66,6 +66,29 @@ async function getCampaignsStats() {
     WHERE clc.clicked_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
     GROUP BY DATE(clc.clicked_at) ORDER BY date ASC
   `);
+  let trendByHour = [];
+  try {
+    const [rowsByHour] = await pool.execute(`
+      SELECT DATE_FORMAT(clc.clicked_at, '%Y-%m-%d %H:00') as hour_bucket, COUNT(*) as clicks
+      FROM campaign_link_clicks clc
+      WHERE clc.clicked_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+      GROUP BY hour_bucket ORDER BY hour_bucket ASC
+    `);
+    const now = new Date();
+    const slots = [];
+    for (let i = 23; i >= 0; i--) {
+      const t = new Date(now);
+      t.setHours(t.getHours() - i, 0, 0, 0);
+      const key = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")} ${String(t.getHours()).padStart(2, "0")}:00`;
+      slots.push({ hour_label: `${String(t.getHours()).padStart(2, "0")}:${String(t.getMinutes()).padStart(2, "0")}`, hour_key: key, clicks: 0 });
+    }
+    const byKey = {};
+    (rowsByHour || []).forEach((r) => {
+      byKey[r.hour_bucket] = Number(r.clicks ?? 0);
+    });
+    trendByHour = slots.map((s) => ({ ...s, clicks: byKey[s.hour_key] ?? 0 }));
+  } catch (_) {}
+
   const [statusDistribution] = await pool.execute(`
     SELECT status, COUNT(*) as count FROM campaigns GROUP BY status
   `);
@@ -126,6 +149,7 @@ async function getCampaignsStats() {
     links: links || {},
     top_campaigns: topCampaigns || [],
     trend_30_days: trend30 || [],
+    trend_by_hour: trendByHour,
     status_distribution: statusDistribution || [],
     top_locations_by_clicks: topLocationsByClicks,
   };
