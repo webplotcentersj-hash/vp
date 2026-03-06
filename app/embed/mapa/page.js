@@ -112,18 +112,15 @@ export default function EmbedMapaPage() {
         iconAnchor: [18, 44],
       });
       const marker = L.marker([lat, lng], { icon }).addTo(map);
-      const statusLabel = isAvailable ? "Disponible" : "No disponible";
-      const selectText = isAvailable ? (isSelected ? "Seleccionado ✓" : "Tocá para seleccionar") : "";
+      const statusLabel = isAvailable ? "Disponible" : "Ocupada";
       const addr = (loc.address || "Sin dirección").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-      const popupContent = `
-        <div class="embed-popup">
-          <div class="embed-popup-header">N° ${loc.id}</div>
-          <div class="embed-popup-addr">${addr}</div>
-          <div class="embed-popup-status" style="color:${baseColor};">${statusLabel}</div>
-          ${selectText ? `<div class="embed-popup-action">${selectText}</div>` : ""}
-        </div>
-      `;
-      marker.bindPopup(popupContent, { className: "embed-popup-wrap", closeButton: true, maxWidth: 260, minWidth: 180 });
+      const tooltipText = `<strong>N° ${loc.id}</strong><br/>${addr}<br/><span style="color:${baseColor};font-weight:600;">${statusLabel}</span>${isAvailable ? (isSelected ? "<br/><em>✓ Seleccionado</em>" : "<br/><em>Tocá para seleccionar</em>") : ""}`;
+      marker.bindTooltip(tooltipText, { 
+        permanent: false, 
+        direction: "top", 
+        offset: [0, -28], 
+        className: "embed-tooltip" 
+      });
       marker.on("click", () => {
         if (toggleRef.current) toggleRef.current(loc.id, loc.status);
       });
@@ -353,7 +350,6 @@ export default function EmbedMapaPage() {
           font-size: 11px;
           font-weight: 700;
           box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-          transition: transform 0.15s;
         }
         .embed-marker.selected {
           animation: marker-pulse 1.5s ease-in-out infinite;
@@ -363,44 +359,22 @@ export default function EmbedMapaPage() {
           50% { box-shadow: 0 0 0 8px rgba(251,191,36,0.35), 0 2px 8px rgba(0,0,0,0.3); }
         }
         .leaflet-container { font-family: inherit; }
-        .embed-popup-wrap .leaflet-popup-content-wrapper {
-          border-radius: 12px;
-          padding: 0;
-          box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-        }
-        .embed-popup-wrap .leaflet-popup-content {
-          margin: 0;
-          padding: 0;
-        }
-        .embed-popup-wrap .leaflet-popup-tip {
-          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-        .embed-popup {
-          padding: 14px 16px;
+        .embed-tooltip {
           font-family: system-ui, -apple-system, sans-serif;
-        }
-        .embed-popup-header {
-          font-size: 15px;
-          font-weight: 700;
-          color: #1c1917;
-          margin-bottom: 4px;
-        }
-        .embed-popup-addr {
           font-size: 13px;
-          color: #57534e;
-          line-height: 1.4;
-          margin-bottom: 8px;
+          line-height: 1.5;
+          padding: 10px 14px;
+          border-radius: 10px;
+          box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+          max-width: 240px;
+          white-space: normal;
           word-break: break-word;
         }
-        .embed-popup-status {
-          font-size: 12px;
-          font-weight: 600;
-          margin-bottom: 4px;
-        }
-        .embed-popup-action {
+        .embed-tooltip em {
+          display: block;
+          margin-top: 4px;
           font-size: 11px;
           color: #78716c;
-          font-style: italic;
         }
         @media (max-width: 480px) {
           .embed-header { padding: 10px 12px; }
