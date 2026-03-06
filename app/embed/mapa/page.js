@@ -11,6 +11,8 @@ export default function EmbedMapaPage() {
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [mapReady, setMapReady] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState("all");
+  const [search, setSearch] = useState("");
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
   const markersRef = useRef([]);
@@ -64,13 +66,29 @@ export default function EmbedMapaPage() {
 
   toggleRef.current = toggleSelect;
 
+  const filteredLocations = locations.filter((loc) => {
+    if (filter === "available" && loc.status !== "available") return false;
+    if (filter === "rented" && loc.status !== "rented") return false;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      if (
+        !String(loc.id).includes(q) &&
+        !(loc.address || "").toLowerCase().includes(q) &&
+        !(loc.reference || "").toLowerCase().includes(q)
+      ) {
+        return false;
+      }
+    }
+    return true;
+  });
+
   useEffect(() => {
     if (!mapReady || !mapRef.current || !LRef.current) return;
     const L = LRef.current;
     const map = mapRef.current;
     markersRef.current.forEach((m) => { try { m.remove(); } catch (_) {} });
     markersRef.current = [];
-    const withCoords = locations.filter(
+    const withCoords = filteredLocations.filter(
       (loc) =>
         (loc.coordinates?.lat != null && loc.coordinates?.lng != null) ||
         (loc.lat != null && loc.lng != null)
@@ -95,11 +113,17 @@ export default function EmbedMapaPage() {
       });
       const marker = L.marker([lat, lng], { icon }).addTo(map);
       const statusLabel = isAvailable ? "Disponible" : "No disponible";
-      const selectText = isAvailable ? (isSelected ? "<br/><em>Seleccionado ✓</em>" : "<br/><em>Tocá para seleccionar</em>") : "";
-      marker.bindTooltip(
-        `<strong>N° ${loc.id}</strong><br/>${(loc.address || "").replace(/</g, "&lt;")}<br/><span style="color:${baseColor};font-weight:600;">${statusLabel}</span>${selectText}`,
-        { permanent: false, direction: "top", offset: [0, -24], className: "tooltip-embed" }
-      );
+      const selectText = isAvailable ? (isSelected ? "Seleccionado ✓" : "Tocá para seleccionar") : "";
+      const addr = (loc.address || "Sin dirección").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      const popupContent = `
+        <div class="embed-popup">
+          <div class="embed-popup-header">N° ${loc.id}</div>
+          <div class="embed-popup-addr">${addr}</div>
+          <div class="embed-popup-status" style="color:${baseColor};">${statusLabel}</div>
+          ${selectText ? `<div class="embed-popup-action">${selectText}</div>` : ""}
+        </div>
+      `;
+      marker.bindPopup(popupContent, { className: "embed-popup-wrap", closeButton: true, maxWidth: 260, minWidth: 180 });
       marker.on("click", () => {
         if (toggleRef.current) toggleRef.current(loc.id, loc.status);
       });
@@ -108,7 +132,7 @@ export default function EmbedMapaPage() {
     if (bounds.length > 0) {
       map.fitBounds(bounds, { padding: [30, 30], maxZoom: 15 });
     }
-  }, [mapReady, locations, selectedIds]);
+  }, [mapReady, filteredLocations, selectedIds]);
 
   function sendWhatsApp() {
     if (selectedIds.size === 0) return;
@@ -120,12 +144,14 @@ export default function EmbedMapaPage() {
   }
 
   const availableCount = locations.filter((l) => l.status === "available").length;
+  const rentedCount = locations.filter((l) => l.status === "rented").length;
   const selectedCount = selectedIds.size;
+  const shownCount = filteredLocations.length;
 
   return (
     <div className="embed-root">
       <style>{`
-        * { box-sizing: border-box; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
         .embed-root {
           width: 100%;
           min-height: 100vh;
@@ -140,40 +166,96 @@ export default function EmbedMapaPage() {
           background: #fff;
           border-bottom: 1px solid #e7e5e4;
           padding: 12px 16px;
+        }
+        .embed-header-top {
           display: flex;
           flex-wrap: wrap;
           align-items: center;
           justify-content: space-between;
-          gap: 10px;
+          gap: 8px;
         }
         .embed-header h1 {
-          margin: 0;
           font-size: 16px;
           font-weight: 700;
           color: #1c1917;
         }
         .embed-header .sub {
-          margin: 2px 0 0;
           font-size: 12px;
           color: #78716c;
-        }
-        .embed-header-right {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          flex-wrap: wrap;
+          margin-top: 2px;
         }
         .embed-selected-count {
           font-size: 12px;
           color: #57534e;
           white-space: nowrap;
+          background: #f5f5f4;
+          padding: 4px 10px;
+          border-radius: 8px;
+        }
+        .embed-controls {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: 8px;
+          margin-top: 10px;
+        }
+        .embed-search {
+          flex: 1;
+          min-width: 120px;
+          max-width: 220px;
+          padding: 8px 12px;
+          border: 1px solid #d6d3d1;
+          border-radius: 8px;
+          font-size: 13px;
+          outline: none;
+          transition: border-color 0.15s;
+        }
+        .embed-search:focus {
+          border-color: #22c55e;
+        }
+        .embed-search::placeholder {
+          color: #a8a29e;
+        }
+        .embed-filters {
+          display: flex;
+          gap: 4px;
+        }
+        .embed-filter-btn {
+          padding: 6px 12px;
+          border: 1px solid #d6d3d1;
+          border-radius: 8px;
+          background: #fff;
+          font-size: 12px;
+          font-weight: 500;
+          color: #57534e;
+          cursor: pointer;
+          transition: all 0.15s;
+          white-space: nowrap;
+        }
+        .embed-filter-btn:hover {
+          background: #f5f5f4;
+        }
+        .embed-filter-btn.active {
+          background: #1c1917;
+          color: #fff;
+          border-color: #1c1917;
+        }
+        .embed-filter-btn.active-green {
+          background: #22c55e;
+          color: #fff;
+          border-color: #22c55e;
+        }
+        .embed-filter-btn.active-red {
+          background: #ef4444;
+          color: #fff;
+          border-color: #ef4444;
         }
         .embed-legend {
           display: flex;
           flex-wrap: wrap;
-          gap: 10px;
+          gap: 12px;
           padding: 8px 16px;
-          background: #fff;
+          background: #fafaf9;
           border-bottom: 1px solid #e7e5e4;
         }
         .embed-legend-item {
@@ -280,12 +362,53 @@ export default function EmbedMapaPage() {
           0%, 100% { box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
           50% { box-shadow: 0 0 0 8px rgba(251,191,36,0.35), 0 2px 8px rgba(0,0,0,0.3); }
         }
-        .tooltip-embed { font-size: 12px; padding: 6px 10px; max-width: 200px; }
         .leaflet-container { font-family: inherit; }
+        .embed-popup-wrap .leaflet-popup-content-wrapper {
+          border-radius: 12px;
+          padding: 0;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        }
+        .embed-popup-wrap .leaflet-popup-content {
+          margin: 0;
+          padding: 0;
+        }
+        .embed-popup-wrap .leaflet-popup-tip {
+          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .embed-popup {
+          padding: 14px 16px;
+          font-family: system-ui, -apple-system, sans-serif;
+        }
+        .embed-popup-header {
+          font-size: 15px;
+          font-weight: 700;
+          color: #1c1917;
+          margin-bottom: 4px;
+        }
+        .embed-popup-addr {
+          font-size: 13px;
+          color: #57534e;
+          line-height: 1.4;
+          margin-bottom: 8px;
+          word-break: break-word;
+        }
+        .embed-popup-status {
+          font-size: 12px;
+          font-weight: 600;
+          margin-bottom: 4px;
+        }
+        .embed-popup-action {
+          font-size: 11px;
+          color: #78716c;
+          font-style: italic;
+        }
         @media (max-width: 480px) {
           .embed-header { padding: 10px 12px; }
           .embed-header h1 { font-size: 15px; }
           .embed-header .sub { font-size: 11px; }
+          .embed-controls { gap: 6px; margin-top: 8px; }
+          .embed-search { padding: 7px 10px; font-size: 12px; max-width: 160px; }
+          .embed-filter-btn { padding: 5px 8px; font-size: 11px; }
           .embed-legend { padding: 6px 12px; gap: 8px; }
           .embed-legend-item { font-size: 10px; }
           .embed-legend-dot { width: 10px; height: 10px; }
@@ -295,7 +418,9 @@ export default function EmbedMapaPage() {
         @media (max-width: 360px) {
           .embed-header h1 { font-size: 14px; }
           .embed-selected-count { display: none; }
-          .embed-fab { padding: 12px 14px; font-size: 12px; right: 12px; bottom: 12px; }
+          .embed-search { min-width: 100px; max-width: 130px; }
+          .embed-filter-btn { padding: 5px 6px; font-size: 10px; }
+          .embed-fab { padding: 10px 14px; font-size: 12px; right: 12px; bottom: 12px; }
         }
         @media (min-height: 700px) {
           .embed-map-wrap { min-height: 400px; }
@@ -303,14 +428,46 @@ export default function EmbedMapaPage() {
       `}</style>
 
       <header className="embed-header">
-        <div>
-          <h1>Ubicaciones disponibles</h1>
-          <p className="sub">{availableCount} disponibles · Tocá los verdes para seleccionar</p>
-        </div>
-        <div className="embed-header-right">
+        <div className="embed-header-top">
+          <div>
+            <h1>Ubicaciones</h1>
+            <p className="sub">{availableCount} disponibles · {rentedCount} ocupadas</p>
+          </div>
           <span className="embed-selected-count">
             {selectedCount > 0 ? `${selectedCount} seleccionadas` : "Ninguna seleccionada"}
           </span>
+        </div>
+        <div className="embed-controls">
+          <input
+            type="search"
+            className="embed-search"
+            placeholder="Buscar N°, dirección..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <div className="embed-filters">
+            <button
+              type="button"
+              className={`embed-filter-btn ${filter === "all" ? "active" : ""}`}
+              onClick={() => setFilter("all")}
+            >
+              Todas ({locations.length})
+            </button>
+            <button
+              type="button"
+              className={`embed-filter-btn ${filter === "available" ? "active-green" : ""}`}
+              onClick={() => setFilter("available")}
+            >
+              Disponibles ({availableCount})
+            </button>
+            <button
+              type="button"
+              className={`embed-filter-btn ${filter === "rented" ? "active-red" : ""}`}
+              onClick={() => setFilter("rented")}
+            >
+              Ocupadas ({rentedCount})
+            </button>
+          </div>
         </div>
       </header>
 
@@ -321,12 +478,17 @@ export default function EmbedMapaPage() {
         </span>
         <span className="embed-legend-item">
           <span className="embed-legend-dot" style={{ background: "#ef4444", border: "2px solid #fff" }} />
-          No disponible
+          Ocupada
         </span>
         <span className="embed-legend-item">
           <span className="embed-legend-dot" style={{ background: "#22c55e", border: "3px solid #fbbf24" }} />
-          Seleccionado
+          Seleccionada
         </span>
+        {(search || filter !== "all") && (
+          <span className="embed-legend-item" style={{ marginLeft: "auto", fontWeight: 600 }}>
+            Mostrando {shownCount} de {locations.length}
+          </span>
+        )}
       </div>
 
       <div className="embed-map-wrap">
