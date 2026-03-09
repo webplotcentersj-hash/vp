@@ -21,8 +21,6 @@ export default function MapaPantallaCompletaPage() {
   const polylinesRef = useRef([]);
   const LRef = useRef(null);
   const [locations, setLocations] = useState([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searching, setSearching] = useState(false);
   const [mapReady, setMapReady] = useState(false);
   const [downloadingMapPdf, setDownloadingMapPdf] = useState(false);
   const [filterNumber, setFilterNumber] = useState("");
@@ -177,30 +175,6 @@ export default function MapaPantallaCompletaPage() {
     }
   }, [mapReady, filteredLocations, showStreetTraces, streetsWithCount, selectedIds]);
 
-  async function handleSearch(e) {
-    e.preventDefault();
-    const q = searchQuery.trim();
-    if (!q) return;
-    setSearching(true);
-    try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1`,
-        { headers: { "Accept-Language": "es", "User-Agent": "PlotCenter-Ubicaciones/1.0" } }
-      );
-      const data = await res.json();
-      if (data && data[0] && mapRef.current) {
-        const { lat, lon } = data[0];
-        mapRef.current.setView([Number(lat), Number(lon)], 16);
-      } else {
-        alert("No se encontraron resultados para \"" + q + "\".");
-      }
-    } catch (err) {
-      alert("Error al buscar: " + (err.message || err));
-    } finally {
-      setSearching(false);
-    }
-  }
-
   function goToNumber() {
     const num = filterNumber.trim();
     if (!num || !mapRef.current) return;
@@ -295,39 +269,12 @@ export default function MapaPantallaCompletaPage() {
             className="w-36 px-3 py-2 border border-stone-200 rounded-lg text-black placeholder-stone-400"
           />
         </div>
-        <div className="flex items-center gap-3 text-xs text-stone-500">
-          <span className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-full bg-green-500 border border-white shadow" />
-            Disponible
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-full bg-red-500 border border-white shadow" />
-            Alquilado
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-full bg-green-500 border-2 border-amber-400 shadow" />
-            Seleccionado
-          </span>
+        <div className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold text-sm shadow-lg shadow-orange-500/30 ring-2 ring-orange-400/50">
+          <span className="opacity-90 text-xs font-medium uppercase tracking-wider">Ubicaciones</span>
+          <span className="tabular-nums">{filteredLocations.length}</span>
+          <span className="opacity-80">/</span>
+          <span className="tabular-nums opacity-90">{locations.length}</span>
         </div>
-        <form onSubmit={handleSearch} className="flex-1 flex gap-2 min-w-[200px] max-w-xl">
-          <input
-            type="text"
-            placeholder="Buscar dirección o lugar en el mapa..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="flex-1 px-4 py-2 border border-stone-200 rounded-lg text-black placeholder-stone-400"
-          />
-          <button
-            type="submit"
-            disabled={searching}
-            className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-60"
-          >
-            {searching ? "…" : "Buscar"}
-          </button>
-        </form>
-        <span className="text-sm text-black">
-          {filteredLocations.length} de {locations.length} ubicaciones
-        </span>
         {selectedIds.size > 0 && (
           <span className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-100 border border-amber-300">
             <span className="font-bold text-amber-800">{selectedIds.size} seleccionados</span>
