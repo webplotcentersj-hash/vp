@@ -1,7 +1,28 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { apiCall } from "@/lib/api";
+
+const DAYS_WARNING = 30;
+const DAYS_URGENT = 7;
+
+function getDaysUntil(endDate) {
+  if (!endDate) return null;
+  const end = new Date(endDate);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  end.setHours(0, 0, 0, 0);
+  return Math.ceil((end - today) / (24 * 60 * 60 * 1000));
+}
+
+function getExpiryStatus(endDate) {
+  const days = getDaysUntil(endDate);
+  if (days === null) return null;
+  if (days < 0) return "vencido";
+  if (days <= DAYS_URGENT) return "urgente";
+  if (days <= DAYS_WARNING) return "por_vencer";
+  return "ok";
+}
 
 export default function AlquileresPage() {
   const [rentals, setRentals] = useState([]);
@@ -10,6 +31,25 @@ export default function AlquileresPage() {
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(null);
   const [form, setForm] = useState({ locationId: "", clientId: "", startDate: "", endDate: "" });
+
+  const stats = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    let activos = 0;
+    let porVencer = 0;
+    let urgentes = 0;
+    let vencidos = 0;
+    rentals.forEach((r) => {
+      if (!r.endDate) return;
+      if (r.endDate < today) vencidos++;
+      else {
+        activos++;
+        const days = getDaysUntil(r.endDate);
+        if (days <= DAYS_URGENT) urgentes++;
+        else if (days <= DAYS_WARNING) porVencer++;
+      }
+    });
+    return { activos, porVencer, urgentes, vencidos };
+  }, [rentals]);
 
   async function load() {
     try {
@@ -76,6 +116,45 @@ export default function AlquileresPage() {
         </button>
       </div>
 
+      {/* Estadísticas */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="p-5 rounded-2xl border-2 border-green-200 bg-gradient-to-br from-green-50 to-emerald-50">
+          <p className="text-sm font-semibold text-green-700">Activos</p>
+          <p className="text-2xl font-black text-black mt-1">{stats.activos}</p>
+          <p className="text-xs text-stone-500 mt-0.5">Alquileres vigentes</p>
+        </div>
+        <div className="p-5 rounded-2xl border-2 border-amber-200 bg-gradient-to-br from-amber-50 to-yellow-50">
+          <p className="text-sm font-semibold text-amber-700">Por vencer (30 d)</p>
+          <p className="text-2xl font-black text-black mt-1">{stats.porVencer}</p>
+          <p className="text-xs text-stone-500 mt-0.5">Próximos 30 días</p>
+        </div>
+        <div className="p-5 rounded-2xl border-2 border-orange-200 bg-gradient-to-br from-orange-50 to-red-50">
+          <p className="text-sm font-semibold text-orange-700">Urgentes (7 d)</p>
+          <p className="text-2xl font-black text-black mt-1">{stats.urgentes}</p>
+          <p className="text-xs text-stone-500 mt-0.5">Vencen en 7 días</p>
+        </div>
+        <div className="p-5 rounded-2xl border-2 border-stone-200 bg-gradient-to-br from-stone-50 to-stone-100">
+          <p className="text-sm font-semibold text-stone-600">Total</p>
+          <p className="text-2xl font-black text-black mt-1">{rentals.length}</p>
+          <p className="text-xs text-stone-500 mt-0.5">Todos los alquileres</p>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-4 text-sm text-stone-600">
+        <span className="flex items-center gap-2">
+          <span className="w-4 h-4 rounded bg-amber-100 border border-amber-300" />
+          Por vencer (30 días)
+        </span>
+        <span className="flex items-center gap-2">
+          <span className="w-4 h-4 rounded bg-orange-100 border border-orange-300" />
+          Urgente (7 días)
+        </span>
+        <span className="flex items-center gap-2">
+          <span className="w-4 h-4 rounded bg-red-100 border border-red-300" />
+          Vencido
+        </span>
+      </div>
+
       <div className="bg-white rounded-xl border border-stone-200 overflow-hidden">
         <table className="w-full text-left">
           <thead className="bg-stone-50 text-black text-sm uppercase">
@@ -89,19 +168,48 @@ export default function AlquileresPage() {
             </tr>
           </thead>
           <tbody>
-            {rentals.map((r) => (
-              <tr key={r.id} className="border-t border-stone-100 hover:bg-stone-50">
+            {rentals.map((r) => {
+              const status = getExpiryStatus(r.endDate);
+              const rowClass =
+                status === "urgente"
+                  ? "border-t border-stone-100 bg-orange-50 hover:bg-orange-100"
+                  : status === "por_vencer"
+                    ? "border-t border-stone-100 bg-amber-50 hover:bg-amber-100"
+                    : status === "vencido"
+                      ? "border-t border-stone-100 bg-red-50/50 hover:bg-red-50"
+                      : "border-t border-stone-100 hover:bg-stone-50";
+              const days = getDaysUntil(r.endDate);
+              const badge =
+                status === "urgente"
+                  ? { text: `${days} días`, class: "bg-orange-500 text-white" }
+                  : status === "por_vencer"
+                    ? { text: `${days} días`, class: "bg-amber-500 text-white" }
+                    : status === "vencido"
+                      ? { text: "Vencido", class: "bg-red-500 text-white" }
+                      : null;
+              return (
+              <tr key={r.id} className={rowClass}>
                 <td className="p-3 font-medium">{r.locationId}</td>
                 <td className="p-3">{r.locationAddress}</td>
                 <td className="p-3">{r.clientName}</td>
                 <td className="p-3">{r.startDate}</td>
-                <td className="p-3">{r.endDate}</td>
+                <td className="p-3">
+                  <span className="flex items-center gap-2">
+                    {r.endDate}
+                    {badge && (
+                      <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-bold ${badge.class}`}>
+                        {badge.text}
+                      </span>
+                    )}
+                  </span>
+                </td>
                 <td className="p-3">
                   <button onClick={() => { setForm({ locationId: r.locationId, clientId: r.clientId, startDate: r.startDate, endDate: r.endDate }); setModal({ id: r.id }); }} className="text-blue-600 hover:underline mr-2">Editar</button>
                   <button onClick={() => endRental(r.id)} className="text-amber-600 hover:underline">Finalizar</button>
                 </td>
               </tr>
-            ))}
+            );
+            })}
           </tbody>
         </table>
       </div>

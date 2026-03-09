@@ -1,16 +1,24 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import Link from "next/link";
 import { apiCall } from "@/lib/api";
 
 const DEFAULT_CENTER = [-31.5375, -68.5364];
 const DEFAULT_ZOOM = 12;
 
+function extractStreetKey(addr) {
+  if (!addr || !addr.trim()) return "Sin calle";
+  const t = addr.trim();
+  const withoutTrailingNum = t.replace(/\s+\d+[\s,]*$/, "").trim();
+  return withoutTrailingNum || t;
+}
+
 export default function MapaPantallaCompletaPage() {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const markersRef = useRef([]);
+  const polylinesRef = useRef([]);
   const LRef = useRef(null);
   const [locations, setLocations] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -19,6 +27,8 @@ export default function MapaPantallaCompletaPage() {
   const [downloadingMapPdf, setDownloadingMapPdf] = useState(false);
   const [filterNumber, setFilterNumber] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [filterStreet, setFilterStreet] = useState("");
+  const [showStreetTraces, setShowStreetTraces] = useState(false);
   const filteredLocations = locations.filter((loc) => {
     if (filterNumber.trim()) {
       const num = filterNumber.trim();
@@ -28,8 +38,30 @@ export default function MapaPantallaCompletaPage() {
       if (filterStatus === "available" && loc.status !== "available") return false;
       if (filterStatus === "rented" && loc.status !== "rented") return false;
     }
+    if (filterStreet.trim()) {
+      const q = filterStreet.toLowerCase();
+      const addr = (loc.address || "").toLowerCase();
+      const ref = (loc.reference || "").toLowerCase();
+      if (!addr.includes(q) && !ref.includes(q)) return false;
+    }
     return true;
   });
+
+  const streetsWithCount = useMemo(() => {
+    const withCoords = filteredLocations.filter(
+      (l) => (l.coordinates?.lat != null && l.coordinates?.lng != null) || (l.lat != null && l.lng != null)
+    );
+    const byStreet = {};
+    withCoords.forEach((loc) => {
+      const key = extractStreetKey(loc.address);
+      if (!byStreet[key]) byStreet[key] = [];
+      byStreet[key].push(loc);
+    });
+    return Object.entries(byStreet)
+      .map(([street, locs]) => ({ street, locs, count: locs.length }))
+      .filter((x) => x.count >= 1)
+      .sort((a, b) => b.count - a.count);
+  }, [filteredLocations]);
 
   useEffect(() => {
     apiCall("locations").then((data) => setLocations(Array.isArray(data) ? data : []));
@@ -64,38 +96,70 @@ export default function MapaPantallaCompletaPage() {
     if (!mapReady || !mapRef.current || !LRef.current) return;
     const map = mapRef.current;
     const L = LRef.current;
-    markersRef.current.forEach((m) => {
-      try { m.remove(); } catch (_) {}
-    });
+    markersRef.current.forEach((m) => { try { m.remove(); } catch (_) {} });
     markersRef.current = [];
+    polylinesRef.current.forEach((p) => { try { map.removeLayer(p); } catch (_) {} });
+    polylinesRef.current = [];
+
     const withCoords = filteredLocations.filter(
       (loc) =>
         (loc.coordinates?.lat != null && loc.coordinates?.lng != null) ||
         (loc.lat != null && loc.lng != null)
     );
     const bounds = [];
+
     withCoords.forEach((loc) => {
       const lat = Number(loc.coordinates?.lat ?? loc.lat);
       const lng = Number(loc.coordinates?.lng ?? loc.lng);
       if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
       bounds.push([lat, lng]);
+      const isAvailable = loc.status === "available";
+      const color = isAvailable ? "#22c55e" : "#ef4444";
       const icon = L.divIcon({
         className: "fullscreen-marker",
-        html: `<span class="marker-pin-fs">${loc.id}</span>`,
+        html: `<span class="marker-pin-fs" style="background:${color}">${loc.id}</span>`,
         iconSize: [32, 40],
         iconAnchor: [16, 40],
       });
       const marker = L.marker([lat, lng], { icon }).addTo(map);
       marker.bindTooltip(
-        `<strong>Chupete N° ${loc.id}</strong><br/>${(loc.address || "Sin dirección").replace(/</g, "&lt;")}`,
+        `<strong>Chupete N° ${loc.id}</strong><br/>${(loc.address || "Sin dirección").replace(/</g, "&lt;")}<br/><span style="color:${color};font-weight:600;">${isAvailable ? "Disponible" : "Alquilado"}</span>`,
         { permanent: false, direction: "top", offset: [0, -24], className: "tooltip-fs" }
       );
       markersRef.current.push(marker);
     });
+
+    if (showStreetTraces && streetsWithCount.length > 0) {
+      const colors = ["#3b82f6", "#8b5cf6", "#ec4899", "#f59e0b", "#10b981"];
+      streetsWithCount.forEach(({ street, locs, count }, i) => {
+        if (count < 2) return;
+        const points = locs
+          .map((l) => {
+            const lat = Number(l.coordinates?.lat ?? l.lat);
+            const lng = Number(l.coordinates?.lng ?? l.lng);
+            return Number.isFinite(lat) && Number.isFinite(lng) ? [lat, lng] : null;
+          })
+          .filter(Boolean);
+        if (points.length < 2) return;
+        points.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+        const poly = L.polyline(points, {
+          color: colors[i % colors.length],
+          weight: 4,
+          opacity: 0.8,
+        }).addTo(map);
+        poly.bindTooltip(`<strong>${street.replace(/</g, "&lt;")}</strong><br/>${count} ubicaciones`, {
+          permanent: false,
+          direction: "top",
+          className: "tooltip-trace",
+        });
+        polylinesRef.current.push(poly);
+      });
+    }
+
     if (bounds.length > 0) {
       map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
     }
-  }, [mapReady, filteredLocations]);
+  }, [mapReady, filteredLocations, showStreetTraces, streetsWithCount]);
 
   async function handleSearch(e) {
     e.preventDefault();
@@ -207,6 +271,23 @@ export default function MapaPantallaCompletaPage() {
             <option value="available">Disponible</option>
             <option value="rented">Alquilado</option>
           </select>
+          <input
+            type="text"
+            placeholder="Por calle"
+            value={filterStreet}
+            onChange={(e) => setFilterStreet(e.target.value)}
+            className="w-36 px-3 py-2 border border-stone-200 rounded-lg text-black placeholder-stone-400"
+          />
+        </div>
+        <div className="flex items-center gap-3 text-xs text-stone-500">
+          <span className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded-full bg-green-500 border border-white shadow" />
+            Disponible
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded-full bg-red-500 border border-white shadow" />
+            Alquilado
+          </span>
         </div>
         <form onSubmit={handleSearch} className="flex-1 flex gap-2 min-w-[200px] max-w-xl">
           <input
@@ -229,6 +310,15 @@ export default function MapaPantallaCompletaPage() {
         </span>
         <button
           type="button"
+          onClick={() => setShowStreetTraces((v) => !v)}
+          className={`px-3 py-2 rounded-lg text-sm font-medium border ${
+            showStreetTraces ? "bg-blue-600 text-white border-blue-600" : "bg-white text-stone-700 border-stone-200 hover:bg-stone-50"
+          }`}
+        >
+          {showStreetTraces ? "Ocultar trazados" : "Trazar por calles"}
+        </button>
+        <button
+          type="button"
           onClick={downloadMapAsPdf}
           disabled={!mapReady || downloadingMapPdf}
           className="px-4 py-2 bg-stone-700 text-white rounded-lg hover:bg-stone-800 disabled:opacity-50 text-sm font-medium"
@@ -236,20 +326,38 @@ export default function MapaPantallaCompletaPage() {
           {downloadingMapPdf ? "Generando…" : "Descargar mapa en PDF"}
         </button>
       </div>
-      <div ref={containerRef} className="flex-1 w-full min-h-0" />
+      <div className="flex-1 flex min-h-0 relative">
+        <div ref={containerRef} className="flex-1 w-full min-h-0" />
+        {showStreetTraces && streetsWithCount.length > 0 && (
+          <div className="absolute top-2 right-2 bottom-2 w-56 max-h-[70vh] overflow-auto bg-white/95 backdrop-blur rounded-xl border border-stone-200 shadow-lg p-3 z-[1000]">
+            <p className="text-xs font-bold text-stone-500 uppercase tracking-wide mb-2">Calles por cantidad</p>
+            <div className="space-y-1.5">
+              {streetsWithCount.map(({ street, count }) => (
+                <div
+                  key={street}
+                  className="flex justify-between items-center text-sm py-1.5 px-2 rounded-lg bg-stone-50 hover:bg-stone-100"
+                >
+                  <span className="text-stone-800 truncate flex-1" title={street}>{street}</span>
+                  <span className="font-bold text-orange-600 ml-2 flex-shrink-0">{count}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
       <style jsx global>{`
         .fullscreen-marker { background: none; border: none; }
         .marker-pin-fs {
           width: 28px; height: 28px;
           border-radius: 50% 50% 50% 0;
           transform: rotate(-45deg);
-          background: #f97316;
           border: 2px solid #fff;
           box-shadow: 0 2px 6px rgba(0,0,0,0.3);
           display: flex; align-items: center; justify-content: center;
           font-size: 11px; font-weight: 700; color: #fff;
         }
         .tooltip-fs { font-size: 13px; }
+        .tooltip-trace { font-size: 12px; padding: 6px 10px; }
       `}</style>
     </div>
   );
