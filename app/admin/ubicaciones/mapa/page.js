@@ -6,6 +6,45 @@ import { apiCall } from "@/lib/api";
 
 const DEFAULT_CENTER = [-31.5375, -68.5364];
 const DEFAULT_ZOOM = 12;
+const EDGE_BUFFER_M = 40; // metros de tolerancia cerca de las líneas del polígono
+
+function distMeters(lat1, lng1, lat2, lng2) {
+  const R = 6371000;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function distToSegment(latP, lngP, latA, lngA, latB, lngB) {
+  const [qLat, qLng] = (() => {
+    const dx = lngB - lngA;
+    const dy = latB - latA;
+    const d2 = dx * dx + dy * dy;
+    if (d2 < 1e-18) return [latA, lngA];
+    let t = ((lngP - lngA) * dx + (latP - latA) * dy) / d2;
+    t = Math.max(0, Math.min(1, t));
+    return [latA + t * dy, lngA + t * dx];
+  })();
+  return distMeters(latP, lngP, qLat, qLng);
+}
+
+function locsNearPolygonEdges(locs, polygon, bufferM) {
+  if (polygon.length < 2) return [];
+  const n = polygon.length;
+  return locs.filter((loc) => {
+    const lat = Number(loc.coordinates?.lat ?? loc.lat);
+    const lng = Number(loc.coordinates?.lng ?? loc.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false;
+    for (let i = 0, j = n - 1; i < n; j = i++) {
+      const d = distToSegment(lat, lng, polygon[j].lat, polygon[j].lng, polygon[i].lat, polygon[i].lng);
+      if (d <= bufferM) return true;
+    }
+    return false;
+  });
+}
 
 function pointInPolygon(lat, lng, polygon) {
   const x = lng;
@@ -204,9 +243,10 @@ export default function MapaPantallaCompletaPage() {
         (l.coordinates?.lat != null && l.coordinates?.lng != null) || (l.lat != null && l.lng != null)
     );
     const inside = locsInPolygon(withCoords, polygon);
+    const nearEdges = locsNearPolygonEdges(withCoords, polygon, EDGE_BUFFER_M);
     const vertexLocs = tracePoints.filter((p) => p.loc).map((p) => p.loc);
     const seen = new Set();
-    const combined = [...inside, ...vertexLocs].filter((loc) => {
+    const combined = [...inside, ...nearEdges, ...vertexLocs].filter((loc) => {
       if (seen.has(loc.id)) return false;
       seen.add(loc.id);
       return true;
