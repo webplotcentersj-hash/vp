@@ -6,35 +6,28 @@ import { apiCall } from "@/lib/api";
 
 const DEFAULT_CENTER = [-31.5375, -68.5364];
 const DEFAULT_ZOOM = 12;
-const TRACE_BUFFER_M = 45; // metros de tolerancia a cada lado de la línea
 
-function distMeters(lat1, lng1, lat2, lng2) {
-  const R = 6371000;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLng = ((lng2 - lng1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+function pointInPolygon(lat, lng, polygon) {
+  const x = lng;
+  const y = lat;
+  let inside = false;
+  const n = polygon.length;
+  for (let i = 0, j = n - 1; i < n; j = i++) {
+    const xi = polygon[i].lng;
+    const yi = polygon[i].lat;
+    const xj = polygon[j].lng;
+    const yj = polygon[j].lat;
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
 }
 
-function closestPointOnSegment(latP, lngP, latA, lngA, latB, lngB) {
-  const dx = lngB - lngA;
-  const dy = latB - latA;
-  const d2 = dx * dx + dy * dy;
-  if (d2 < 1e-18) return [latA, lngA];
-  let t = ((lngP - lngA) * dx + (latP - latA) * dy) / d2;
-  t = Math.max(0, Math.min(1, t));
-  return [latA + t * dy, lngA + t * dx];
-}
-
-function locsWithinLine(locs, latA, lngA, latB, lngB, bufferM) {
+function locsInPolygon(locs, polygon) {
+  if (polygon.length < 3) return [];
   return locs.filter((loc) => {
     const lat = Number(loc.coordinates?.lat ?? loc.lat);
     const lng = Number(loc.coordinates?.lng ?? loc.lng);
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false;
-    const [qLat, qLng] = closestPointOnSegment(lat, lng, latA, lngA, latB, lngB);
-    return distMeters(lat, lng, qLat, qLng) <= bufferM;
+    return Number.isFinite(lat) && Number.isFinite(lng) && pointInPolygon(lat, lng, polygon);
   });
 }
 
@@ -51,12 +44,10 @@ export default function MapaPantallaCompletaPage() {
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterStreet, setFilterStreet] = useState("");
   const [manualTraceMode, setManualTraceMode] = useState(false);
-  const [traceStart, setTraceStart] = useState(null);
-  const [traceEnd, setTraceEnd] = useState(null);
+  const [tracePoints, setTracePoints] = useState([]);
   const [tracedLocs, setTracedLocs] = useState([]);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const toggleRef = useRef(() => {});
-  const traceStartRef = useRef(null);
 
   function toggleSelect(id) {
     setSelectedIds((prev) => {
@@ -152,25 +143,10 @@ export default function MapaPantallaCompletaPage() {
         { permanent: false, direction: "top", offset: [0, -24], className: "tooltip-fs" }
       );
       marker.on("click", (e) => {
-        if (manualTraceMode) {
+        if (manualTraceMode && tracedLocs.length === 0) {
           e.originalEvent?.preventDefault?.();
           e.originalEvent?.stopPropagation?.();
-          const pt = { lat, lng, loc };
-          const start = traceStartRef.current;
-          if (!start) {
-            traceStartRef.current = pt;
-            setTraceStart(pt);
-            setTraceEnd(null);
-            setTracedLocs([]);
-          } else {
-            const withCoords = filteredLocations.filter(
-              (l) =>
-                (l.coordinates?.lat != null && l.coordinates?.lng != null) || (l.lat != null && l.lng != null)
-            );
-            setTraceEnd(pt);
-            setTracedLocs(locsWithinLine(withCoords, start.lat, start.lng, pt.lat, pt.lng, TRACE_BUFFER_M));
-            traceStartRef.current = null;
-          }
+          setTracePoints((prev) => [...prev, { lat, lng }]);
         } else if (toggleRef.current) {
           toggleRef.current(loc.id);
         }
@@ -178,26 +154,58 @@ export default function MapaPantallaCompletaPage() {
       markersRef.current.push(marker);
     });
 
-    if (traceStart && traceEnd) {
-      const poly = L.polyline(
-        [
-          [traceStart.lat, traceStart.lng],
-          [traceEnd.lat, traceEnd.lng],
-        ],
-        { color: "#ea580c", weight: 5, opacity: 0.9, dashArray: "8, 6" }
-      ).addTo(map);
-      polylinesRef.current.push(poly);
+    if (tracePoints.length >= 2) {
+      const latlngs = tracePoints.map((p) => [p.lat, p.lng]);
+      if (tracedLocs.length > 0 && tracePoints.length >= 3) {
+        const closed = [...latlngs, latlngs[0]];
+        const poly = L.polygon(closed, {
+          color: "#ea580c",
+          weight: 4,
+          opacity: 0.9,
+          fillColor: "#ea580c",
+          fillOpacity: 0.25,
+        }).addTo(map);
+        polylinesRef.current.push(poly);
+      } else {
+        const poly = L.polyline(latlngs, {
+          color: "#ea580c",
+          weight: 4,
+          opacity: 0.9,
+          dashArray: "6, 4",
+        }).addTo(map);
+        polylinesRef.current.push(poly);
+      }
     }
 
     if (bounds.length > 0) {
       map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
     }
-  }, [mapReady, filteredLocations, selectedIds, manualTraceMode, traceStart, traceEnd]);
+  }, [mapReady, filteredLocations, selectedIds, manualTraceMode, tracePoints, tracedLocs.length]);
+
+  useEffect(() => {
+    if (!mapReady || !mapRef.current || !manualTraceMode || tracedLocs.length > 0) return;
+    const map = mapRef.current;
+    const onMapClick = (e) => {
+      setTracePoints((prev) => [...prev, { lat: e.latlng.lat, lng: e.latlng.lng }]);
+    };
+    map.on("click", onMapClick);
+    return () => {
+      map.off("click", onMapClick);
+    };
+  }, [mapReady, manualTraceMode, tracedLocs.length]);
+
+  function closeTrace() {
+    if (tracePoints.length < 3) return;
+    const polygon = tracePoints.map((p) => ({ lat: p.lat, lng: p.lng }));
+    const withCoords = filteredLocations.filter(
+      (l) =>
+        (l.coordinates?.lat != null && l.coordinates?.lng != null) || (l.lat != null && l.lng != null)
+    );
+    setTracedLocs(locsInPolygon(withCoords, polygon));
+  }
 
   function clearTrace() {
-    traceStartRef.current = null;
-    setTraceStart(null);
-    setTraceEnd(null);
+    setTracePoints([]);
     setTracedLocs([]);
   }
 
@@ -336,21 +344,38 @@ export default function MapaPantallaCompletaPage() {
       </div>
       <div className="flex-1 flex min-h-0 relative">
         <div ref={containerRef} className="flex-1 w-full min-h-0" />
-        {manualTraceMode && !traceStart && (
+        {manualTraceMode && tracedLocs.length === 0 && (
           <div className="absolute top-2 left-1/2 -translate-x-1/2 z-[500] px-4 py-2 rounded-lg bg-orange-600 text-white text-sm font-medium shadow-lg">
-            Tocá un chupete para empezar
+            {tracePoints.length === 0
+              ? "Tocá en el mapa o en chupetes para agregar puntos"
+              : `${tracePoints.length} puntos · Tocá más o "Cerrar y contar"`}
           </div>
         )}
-        {manualTraceMode && traceStart && !traceEnd && (
-          <div className="absolute top-2 left-1/2 -translate-x-1/2 z-[500] px-4 py-2 rounded-lg bg-orange-500 text-white text-sm font-medium shadow-lg animate-pulse">
-            Tocá el chupete final
+        {manualTraceMode && tracePoints.length >= 2 && tracedLocs.length === 0 && (
+          <div className="absolute top-12 left-1/2 -translate-x-1/2 z-[500] flex items-center gap-2">
+            {tracePoints.length >= 3 && (
+              <button
+                type="button"
+                onClick={closeTrace}
+                className="px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-bold shadow-lg hover:bg-green-700"
+              >
+                Cerrar y contar
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setTracePoints((p) => p.slice(0, -1))}
+              className="px-3 py-2 rounded-lg bg-stone-500 text-white text-sm font-medium shadow hover:bg-stone-600"
+            >
+              Deshacer
+            </button>
           </div>
         )}
         {tracedLocs.length > 0 && (
           <div className="absolute top-2 right-2 w-72 max-h-[70vh] overflow-auto bg-white/95 backdrop-blur rounded-xl border border-stone-200 shadow-lg p-3 z-[1000]">
             <div className="flex justify-between items-center mb-2">
               <p className="text-xs font-bold text-orange-600 uppercase tracking-wide">
-                En la línea: {tracedLocs.length} ubicaciones
+                En el área: {tracedLocs.length} ubicaciones
               </p>
               <button
                 type="button"
