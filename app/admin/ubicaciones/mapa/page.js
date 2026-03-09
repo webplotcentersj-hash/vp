@@ -146,7 +146,7 @@ export default function MapaPantallaCompletaPage() {
         if (manualTraceMode && tracedLocs.length === 0) {
           e.originalEvent?.preventDefault?.();
           e.originalEvent?.stopPropagation?.();
-          setTracePoints((prev) => [...prev, { lat, lng }]);
+          setTracePoints((prev) => [...prev, { lat, lng, loc }]);
         } else if (toggleRef.current) {
           toggleRef.current(loc.id);
         }
@@ -159,19 +159,21 @@ export default function MapaPantallaCompletaPage() {
       if (tracedLocs.length > 0 && tracePoints.length >= 3) {
         const closed = [...latlngs, latlngs[0]];
         const poly = L.polygon(closed, {
-          color: "#ea580c",
-          weight: 4,
-          opacity: 0.9,
+          color: "#b45309",
+          weight: 8,
+          opacity: 1,
           fillColor: "#ea580c",
-          fillOpacity: 0.25,
+          fillOpacity: 0.35,
+          className: "trace-polygon",
         }).addTo(map);
         polylinesRef.current.push(poly);
       } else {
         const poly = L.polyline(latlngs, {
-          color: "#ea580c",
-          weight: 4,
-          opacity: 0.9,
-          dashArray: "6, 4",
+          color: "#b45309",
+          weight: 8,
+          opacity: 1,
+          dashArray: "12, 10",
+          className: "trace-polyline",
         }).addTo(map);
         polylinesRef.current.push(poly);
       }
@@ -201,7 +203,15 @@ export default function MapaPantallaCompletaPage() {
       (l) =>
         (l.coordinates?.lat != null && l.coordinates?.lng != null) || (l.lat != null && l.lng != null)
     );
-    setTracedLocs(locsInPolygon(withCoords, polygon));
+    const inside = locsInPolygon(withCoords, polygon);
+    const vertexLocs = tracePoints.filter((p) => p.loc).map((p) => p.loc);
+    const seen = new Set();
+    const combined = [...inside, ...vertexLocs].filter((loc) => {
+      if (seen.has(loc.id)) return false;
+      seen.add(loc.id);
+      return true;
+    });
+    setTracedLocs(combined);
   }
 
   function clearTrace() {
@@ -409,6 +419,10 @@ export default function MapaPantallaCompletaPage() {
         )}
       </div>
       <style jsx global>{`
+        .trace-polygon path, .trace-polyline path {
+          filter: drop-shadow(0 2px 6px rgba(0,0,0,0.25));
+          stroke-width: 8 !important;
+        }
         .fullscreen-marker { background: none; border: none; cursor: pointer; }
         .marker-pin-fs {
           width: 28px; height: 28px;
