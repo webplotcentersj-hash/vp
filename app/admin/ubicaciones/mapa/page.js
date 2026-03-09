@@ -29,6 +29,19 @@ export default function MapaPantallaCompletaPage() {
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterStreet, setFilterStreet] = useState("");
   const [showStreetTraces, setShowStreetTraces] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const toggleRef = useRef(() => {});
+
+  function toggleSelect(id) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+  toggleRef.current = toggleSelect;
+
   const filteredLocations = locations.filter((loc) => {
     if (filterNumber.trim()) {
       const num = filterNumber.trim();
@@ -114,18 +127,21 @@ export default function MapaPantallaCompletaPage() {
       if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
       bounds.push([lat, lng]);
       const isAvailable = loc.status === "available";
+      const isSelected = selectedIds.has(loc.id);
       const color = isAvailable ? "#22c55e" : "#ef4444";
+      const borderStyle = isSelected ? "3px solid #fbbf24" : "2px solid #fff";
       const icon = L.divIcon({
         className: "fullscreen-marker",
-        html: `<span class="marker-pin-fs" style="background:${color}">${loc.id}</span>`,
+        html: `<span class="marker-pin-fs" style="background:${color};border:${borderStyle}">${loc.id}</span>`,
         iconSize: [32, 40],
         iconAnchor: [16, 40],
       });
       const marker = L.marker([lat, lng], { icon }).addTo(map);
       marker.bindTooltip(
-        `<strong>Chupete N° ${loc.id}</strong><br/>${(loc.address || "Sin dirección").replace(/</g, "&lt;")}<br/><span style="color:${color};font-weight:600;">${isAvailable ? "Disponible" : "Alquilado"}</span>`,
+        `<strong>Chupete N° ${loc.id}</strong><br/>${(loc.address || "Sin dirección").replace(/</g, "&lt;")}<br/><span style="color:${color};font-weight:600;">${isAvailable ? "Disponible" : "Alquilado"}</span>${isSelected ? "<br/><em>✓ Seleccionado</em>" : "<br/><em>Tocá para seleccionar</em>"}`,
         { permanent: false, direction: "top", offset: [0, -24], className: "tooltip-fs" }
       );
+      marker.on("click", () => { if (toggleRef.current) toggleRef.current(loc.id); });
       markersRef.current.push(marker);
     });
 
@@ -159,7 +175,7 @@ export default function MapaPantallaCompletaPage() {
     if (bounds.length > 0) {
       map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
     }
-  }, [mapReady, filteredLocations, showStreetTraces, streetsWithCount]);
+  }, [mapReady, filteredLocations, showStreetTraces, streetsWithCount, selectedIds]);
 
   async function handleSearch(e) {
     e.preventDefault();
@@ -288,6 +304,10 @@ export default function MapaPantallaCompletaPage() {
             <span className="w-3 h-3 rounded-full bg-red-500 border border-white shadow" />
             Alquilado
           </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded-full bg-green-500 border-2 border-amber-400 shadow" />
+            Seleccionado
+          </span>
         </div>
         <form onSubmit={handleSearch} className="flex-1 flex gap-2 min-w-[200px] max-w-xl">
           <input
@@ -308,6 +328,18 @@ export default function MapaPantallaCompletaPage() {
         <span className="text-sm text-black">
           {filteredLocations.length} de {locations.length} ubicaciones
         </span>
+        {selectedIds.size > 0 && (
+          <span className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-100 border border-amber-300">
+            <span className="font-bold text-amber-800">{selectedIds.size} seleccionados</span>
+            <button
+              type="button"
+              onClick={() => setSelectedIds(new Set())}
+              className="text-xs text-amber-700 hover:underline"
+            >
+              Limpiar
+            </button>
+          </span>
+        )}
         <button
           type="button"
           onClick={() => setShowStreetTraces((v) => !v)}
@@ -346,7 +378,7 @@ export default function MapaPantallaCompletaPage() {
         )}
       </div>
       <style jsx global>{`
-        .fullscreen-marker { background: none; border: none; }
+        .fullscreen-marker { background: none; border: none; cursor: pointer; }
         .marker-pin-fs {
           width: 28px; height: 28px;
           border-radius: 50% 50% 50% 0;
