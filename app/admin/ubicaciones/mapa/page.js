@@ -6,12 +6,36 @@ import { apiCall } from "@/lib/api";
 
 const DEFAULT_CENTER = [-31.5375, -68.5364];
 const DEFAULT_ZOOM = 12;
+const TRACE_BUFFER_M = 45; // metros de tolerancia a cada lado de la línea
 
-function extractStreetKey(addr) {
-  if (!addr || !addr.trim()) return "Sin calle";
-  const t = addr.trim();
-  const withoutTrailingNum = t.replace(/\s+\d+[\s,]*$/, "").trim();
-  return withoutTrailingNum || t;
+function distMeters(lat1, lng1, lat2, lng2) {
+  const R = 6371000;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function closestPointOnSegment(latP, lngP, latA, lngA, latB, lngB) {
+  const dx = lngB - lngA;
+  const dy = latB - latA;
+  const d2 = dx * dx + dy * dy;
+  if (d2 < 1e-18) return [latA, lngA];
+  let t = ((lngP - lngA) * dx + (latP - latA) * dy) / d2;
+  t = Math.max(0, Math.min(1, t));
+  return [latA + t * dy, lngA + t * dx];
+}
+
+function locsWithinLine(locs, latA, lngA, latB, lngB, bufferM) {
+  return locs.filter((loc) => {
+    const lat = Number(loc.coordinates?.lat ?? loc.lat);
+    const lng = Number(loc.coordinates?.lng ?? loc.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false;
+    const [qLat, qLng] = closestPointOnSegment(lat, lng, latA, lngA, latB, lngB);
+    return distMeters(lat, lng, qLat, qLng) <= bufferM;
+  });
 }
 
 export default function MapaPantallaCompletaPage() {
@@ -26,9 +50,14 @@ export default function MapaPantallaCompletaPage() {
   const [filterNumber, setFilterNumber] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterStreet, setFilterStreet] = useState("");
-  const [showStreetTraces, setShowStreetTraces] = useState(false);
+  const [manualTraceMode, setManualTraceMode] = useState(false);
+  const [traceStart, setTraceStart] = useState(null);
+  const [traceEnd, setTraceEnd] = useState(null);
+  const [tracedLocs, setTracedLocs] = useState([]);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const toggleRef = useRef(() => {});
+  const tempLineRef = useRef(null);
+  const manualTraceStartRef = useRef(null);
 
   function toggleSelect(id) {
     setSelectedIds((prev) => {
@@ -57,22 +86,6 @@ export default function MapaPantallaCompletaPage() {
     }
     return true;
   });
-
-  const streetsWithCount = useMemo(() => {
-    const withCoords = filteredLocations.filter(
-      (l) => (l.coordinates?.lat != null && l.coordinates?.lng != null) || (l.lat != null && l.lng != null)
-    );
-    const byStreet = {};
-    withCoords.forEach((loc) => {
-      const key = extractStreetKey(loc.address);
-      if (!byStreet[key]) byStreet[key] = [];
-      byStreet[key].push(loc);
-    });
-    return Object.entries(byStreet)
-      .map(([street, locs]) => ({ street, locs, count: locs.length }))
-      .filter((x) => x.count >= 1)
-      .sort((a, b) => b.count - a.count);
-  }, [filteredLocations]);
 
   useEffect(() => {
     apiCall("locations").then((data) => setLocations(Array.isArray(data) ? data : []));
@@ -139,41 +152,107 @@ export default function MapaPantallaCompletaPage() {
         `<strong>Chupete N° ${loc.id}</strong><br/>${(loc.address || "Sin dirección").replace(/</g, "&lt;")}<br/><span style="color:${color};font-weight:600;">${isAvailable ? "Disponible" : "Alquilado"}</span>${isSelected ? "<br/><em>✓ Seleccionado</em>" : "<br/><em>Tocá para seleccionar</em>"}`,
         { permanent: false, direction: "top", offset: [0, -24], className: "tooltip-fs" }
       );
-      marker.on("click", () => { if (toggleRef.current) toggleRef.current(loc.id); });
+      marker.on("mousedown", (e) => {
+        if (manualTraceMode) {
+          e.originalEvent?.preventDefault?.();
+          e.originalEvent?.stopPropagation?.();
+          manualTraceStartRef.current = { lat, lng, loc };
+          setTraceStart({ lat, lng, loc });
+          setTraceEnd(null);
+          setTracedLocs([]);
+        }
+      });
+      marker.on("click", (e) => {
+        if (!manualTraceMode && toggleRef.current) toggleRef.current(loc.id);
+      });
       markersRef.current.push(marker);
     });
 
-    if (showStreetTraces && streetsWithCount.length > 0) {
-      const colors = ["#3b82f6", "#8b5cf6", "#ec4899", "#f59e0b", "#10b981"];
-      streetsWithCount.forEach(({ street, locs, count }, i) => {
-        if (count < 2) return;
-        const points = locs
-          .map((l) => {
-            const lat = Number(l.coordinates?.lat ?? l.lat);
-            const lng = Number(l.coordinates?.lng ?? l.lng);
-            return Number.isFinite(lat) && Number.isFinite(lng) ? [lat, lng] : null;
-          })
-          .filter(Boolean);
-        if (points.length < 2) return;
-        points.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
-        const poly = L.polyline(points, {
-          color: colors[i % colors.length],
-          weight: 4,
-          opacity: 0.8,
-        }).addTo(map);
-        poly.bindTooltip(`<strong>${street.replace(/</g, "&lt;")}</strong><br/>${count} ubicaciones`, {
-          permanent: false,
-          direction: "top",
-          className: "tooltip-trace",
-        });
-        polylinesRef.current.push(poly);
-      });
+    if (traceStart && traceEnd) {
+      const poly = L.polyline(
+        [
+          [traceStart.lat, traceStart.lng],
+          [traceEnd.lat, traceEnd.lng],
+        ],
+        { color: "#ea580c", weight: 5, opacity: 0.9, dashArray: "8, 6" }
+      ).addTo(map);
+      polylinesRef.current.push(poly);
     }
 
     if (bounds.length > 0) {
       map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
     }
-  }, [mapReady, filteredLocations, showStreetTraces, streetsWithCount, selectedIds]);
+  }, [mapReady, filteredLocations, selectedIds, manualTraceMode, traceStart, traceEnd]);
+
+  useEffect(() => {
+    if (!mapReady || !mapRef.current || !LRef.current || !traceStart || traceEnd) return;
+    const map = mapRef.current;
+    const L = LRef.current;
+    const start = traceStart;
+
+    const onMove = (e) => {
+      if (tempLineRef.current) {
+        try {
+          map.removeLayer(tempLineRef.current);
+        } catch (_) {}
+      }
+      tempLineRef.current = L.polyline(
+        [
+          [start.lat, start.lng],
+          [e.latlng.lat, e.latlng.lng],
+        ],
+        { color: "#ea580c", weight: 4, opacity: 0.7, dashArray: "6, 4" }
+      ).addTo(map);
+    };
+
+    const onUp = (e) => {
+      const endLat = e.latlng.lat;
+      const endLng = e.latlng.lng;
+      if (tempLineRef.current) {
+        try {
+          map.removeLayer(tempLineRef.current);
+        } catch (_) {}
+        tempLineRef.current = null;
+      }
+      map.off("mousemove", onMove);
+      map.off("mouseup", onUp);
+      map.getContainer().style.cursor = "";
+      setTraceEnd({ lat: endLat, lng: endLng });
+      const within = locsWithinLine(
+        filteredLocations.filter(
+          (l) =>
+            (l.coordinates?.lat != null && l.coordinates?.lng != null) || (l.lat != null && l.lng != null)
+        ),
+        start.lat,
+        start.lng,
+        endLat,
+        endLng,
+        TRACE_BUFFER_M
+      );
+      setTracedLocs(within);
+    };
+
+    map.getContainer().style.cursor = "crosshair";
+    map.on("mousemove", onMove);
+    map.on("mouseup", onUp);
+    return () => {
+      map.off("mousemove", onMove);
+      map.off("mouseup", onUp);
+      map.getContainer().style.cursor = "";
+      if (tempLineRef.current) {
+        try {
+          map.removeLayer(tempLineRef.current);
+        } catch (_) {}
+        tempLineRef.current = null;
+      }
+    };
+  }, [mapReady, traceStart, traceEnd, filteredLocations]);
+
+  function clearTrace() {
+    setTraceStart(null);
+    setTraceEnd(null);
+    setTracedLocs([]);
+  }
 
   function goToNumber() {
     const num = filterNumber.trim();
@@ -289,12 +368,15 @@ export default function MapaPantallaCompletaPage() {
         )}
         <button
           type="button"
-          onClick={() => setShowStreetTraces((v) => !v)}
+          onClick={() => {
+            if (manualTraceMode) clearTrace();
+            setManualTraceMode((v) => !v);
+          }}
           className={`px-3 py-2 rounded-lg text-sm font-medium border ${
-            showStreetTraces ? "bg-blue-600 text-white border-blue-600" : "bg-white text-stone-700 border-stone-200 hover:bg-stone-50"
+            manualTraceMode ? "bg-orange-600 text-white border-orange-600" : "bg-white text-stone-700 border-stone-200 hover:bg-stone-50"
           }`}
         >
-          {showStreetTraces ? "Ocultar trazados" : "Trazar por calles"}
+          {manualTraceMode ? "Cancelar trazado" : "Trazar manualmente"}
         </button>
         <button
           type="button"
@@ -307,17 +389,47 @@ export default function MapaPantallaCompletaPage() {
       </div>
       <div className="flex-1 flex min-h-0 relative">
         <div ref={containerRef} className="flex-1 w-full min-h-0" />
-        {showStreetTraces && streetsWithCount.length > 0 && (
-          <div className="absolute top-2 right-2 bottom-2 w-56 max-h-[70vh] overflow-auto bg-white/95 backdrop-blur rounded-xl border border-stone-200 shadow-lg p-3 z-[1000]">
-            <p className="text-xs font-bold text-stone-500 uppercase tracking-wide mb-2">Calles por cantidad</p>
+        {manualTraceMode && !traceStart && (
+          <div className="absolute top-2 left-1/2 -translate-x-1/2 z-[500] px-4 py-2 rounded-lg bg-orange-600 text-white text-sm font-medium shadow-lg">
+            Tocá un chupete y arrastrá hasta otro para trazar
+          </div>
+        )}
+        {manualTraceMode && traceStart && !traceEnd && (
+          <div className="absolute top-2 left-1/2 -translate-x-1/2 z-[500] px-4 py-2 rounded-lg bg-orange-500 text-white text-sm font-medium shadow-lg animate-pulse">
+            Arrastrá hasta el chupete final y soltá
+          </div>
+        )}
+        {tracedLocs.length > 0 && (
+          <div className="absolute top-2 right-2 w-72 max-h-[70vh] overflow-auto bg-white/95 backdrop-blur rounded-xl border border-stone-200 shadow-lg p-3 z-[1000]">
+            <div className="flex justify-between items-center mb-2">
+              <p className="text-xs font-bold text-orange-600 uppercase tracking-wide">
+                En la línea: {tracedLocs.length} ubicaciones
+              </p>
+              <button
+                type="button"
+                onClick={clearTrace}
+                className="text-xs text-stone-500 hover:text-stone-700 hover:underline"
+              >
+                Limpiar
+              </button>
+            </div>
             <div className="space-y-1.5">
-              {streetsWithCount.map(({ street, count }) => (
+              {tracedLocs.map((loc) => (
                 <div
-                  key={street}
+                  key={loc.id}
                   className="flex justify-between items-center text-sm py-1.5 px-2 rounded-lg bg-stone-50 hover:bg-stone-100"
                 >
-                  <span className="text-stone-800 truncate flex-1" title={street}>{street}</span>
-                  <span className="font-bold text-orange-600 ml-2 flex-shrink-0">{count}</span>
+                  <span className="text-stone-800 truncate flex-1" title={loc.address}>
+                    N°{loc.id} · {(loc.address || "Sin dirección").slice(0, 35)}
+                    {(loc.address || "").length > 35 ? "…" : ""}
+                  </span>
+                  <span
+                    className={`ml-2 flex-shrink-0 font-semibold ${
+                      loc.status === "available" ? "text-green-600" : "text-red-600"
+                    }`}
+                  >
+                    {loc.status === "available" ? "Disp." : "Ocup."}
+                  </span>
                 </div>
               ))}
             </div>
