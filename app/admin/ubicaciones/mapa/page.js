@@ -56,8 +56,7 @@ export default function MapaPantallaCompletaPage() {
   const [tracedLocs, setTracedLocs] = useState([]);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const toggleRef = useRef(() => {});
-  const tempLineRef = useRef(null);
-  const manualTraceStartRef = useRef(null);
+  const traceStartRef = useRef(null);
 
   function toggleSelect(id) {
     setSelectedIds((prev) => {
@@ -152,18 +151,29 @@ export default function MapaPantallaCompletaPage() {
         `<strong>Chupete N° ${loc.id}</strong><br/>${(loc.address || "Sin dirección").replace(/</g, "&lt;")}<br/><span style="color:${color};font-weight:600;">${isAvailable ? "Disponible" : "Alquilado"}</span>${isSelected ? "<br/><em>✓ Seleccionado</em>" : "<br/><em>Tocá para seleccionar</em>"}`,
         { permanent: false, direction: "top", offset: [0, -24], className: "tooltip-fs" }
       );
-      marker.on("mousedown", (e) => {
+      marker.on("click", (e) => {
         if (manualTraceMode) {
           e.originalEvent?.preventDefault?.();
           e.originalEvent?.stopPropagation?.();
-          manualTraceStartRef.current = { lat, lng, loc };
-          setTraceStart({ lat, lng, loc });
-          setTraceEnd(null);
-          setTracedLocs([]);
+          const pt = { lat, lng, loc };
+          const start = traceStartRef.current;
+          if (!start) {
+            traceStartRef.current = pt;
+            setTraceStart(pt);
+            setTraceEnd(null);
+            setTracedLocs([]);
+          } else {
+            const withCoords = filteredLocations.filter(
+              (l) =>
+                (l.coordinates?.lat != null && l.coordinates?.lng != null) || (l.lat != null && l.lng != null)
+            );
+            setTraceEnd(pt);
+            setTracedLocs(locsWithinLine(withCoords, start.lat, start.lng, pt.lat, pt.lng, TRACE_BUFFER_M));
+            traceStartRef.current = null;
+          }
+        } else if (toggleRef.current) {
+          toggleRef.current(loc.id);
         }
-      });
-      marker.on("click", (e) => {
-        if (!manualTraceMode && toggleRef.current) toggleRef.current(loc.id);
       });
       markersRef.current.push(marker);
     });
@@ -184,71 +194,8 @@ export default function MapaPantallaCompletaPage() {
     }
   }, [mapReady, filteredLocations, selectedIds, manualTraceMode, traceStart, traceEnd]);
 
-  useEffect(() => {
-    if (!mapReady || !mapRef.current || !LRef.current || !traceStart || traceEnd) return;
-    const map = mapRef.current;
-    const L = LRef.current;
-    const start = traceStart;
-
-    const onMove = (e) => {
-      if (tempLineRef.current) {
-        try {
-          map.removeLayer(tempLineRef.current);
-        } catch (_) {}
-      }
-      tempLineRef.current = L.polyline(
-        [
-          [start.lat, start.lng],
-          [e.latlng.lat, e.latlng.lng],
-        ],
-        { color: "#ea580c", weight: 4, opacity: 0.7, dashArray: "6, 4" }
-      ).addTo(map);
-    };
-
-    const onUp = (e) => {
-      const endLat = e.latlng.lat;
-      const endLng = e.latlng.lng;
-      if (tempLineRef.current) {
-        try {
-          map.removeLayer(tempLineRef.current);
-        } catch (_) {}
-        tempLineRef.current = null;
-      }
-      map.off("mousemove", onMove);
-      map.off("mouseup", onUp);
-      map.getContainer().style.cursor = "";
-      setTraceEnd({ lat: endLat, lng: endLng });
-      const within = locsWithinLine(
-        filteredLocations.filter(
-          (l) =>
-            (l.coordinates?.lat != null && l.coordinates?.lng != null) || (l.lat != null && l.lng != null)
-        ),
-        start.lat,
-        start.lng,
-        endLat,
-        endLng,
-        TRACE_BUFFER_M
-      );
-      setTracedLocs(within);
-    };
-
-    map.getContainer().style.cursor = "crosshair";
-    map.on("mousemove", onMove);
-    map.on("mouseup", onUp);
-    return () => {
-      map.off("mousemove", onMove);
-      map.off("mouseup", onUp);
-      map.getContainer().style.cursor = "";
-      if (tempLineRef.current) {
-        try {
-          map.removeLayer(tempLineRef.current);
-        } catch (_) {}
-        tempLineRef.current = null;
-      }
-    };
-  }, [mapReady, traceStart, traceEnd, filteredLocations]);
-
   function clearTrace() {
+    traceStartRef.current = null;
     setTraceStart(null);
     setTraceEnd(null);
     setTracedLocs([]);
@@ -391,12 +338,12 @@ export default function MapaPantallaCompletaPage() {
         <div ref={containerRef} className="flex-1 w-full min-h-0" />
         {manualTraceMode && !traceStart && (
           <div className="absolute top-2 left-1/2 -translate-x-1/2 z-[500] px-4 py-2 rounded-lg bg-orange-600 text-white text-sm font-medium shadow-lg">
-            Tocá un chupete y arrastrá hasta otro para trazar
+            Tocá un chupete para empezar
           </div>
         )}
         {manualTraceMode && traceStart && !traceEnd && (
           <div className="absolute top-2 left-1/2 -translate-x-1/2 z-[500] px-4 py-2 rounded-lg bg-orange-500 text-white text-sm font-medium shadow-lg animate-pulse">
-            Arrastrá hasta el chupete final y soltá
+            Tocá el chupete final
           </div>
         )}
         {tracedLocs.length > 0 && (
