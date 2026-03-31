@@ -1,24 +1,39 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+function locationMatchesQuery(loc, q) {
+  const s = q.trim().toLowerCase();
+  if (!s) return true;
+  return (
+    String(loc.id).includes(s) ||
+    (loc.address || "").toLowerCase().includes(s) ||
+    (loc.reference || "").toLowerCase().includes(s)
+  );
+}
 
 const DEFAULT_CENTER = [-31.5375, -68.5364];
 const DEFAULT_ZOOM = 13;
+const POLL_MS_VISIBLE = 2500;
+const POLL_MS_HIDDEN = 25000;
 
 export default function InstalacionesPublic({ slug }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
   const [pendingId, setPendingId] = useState(null);
+  const [search, setSearch] = useState("");
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
   const markersRef = useRef([]);
   const LRef = useRef(null);
   const dataRef = useRef(null);
   const slugRef = useRef(slug);
+  const searchRef = useRef("");
   const toggleRef = useRef(() => {});
 
   slugRef.current = slug;
+  searchRef.current = search;
 
   const load = useCallback(async () => {
     const requestedSlug = slug;
@@ -79,6 +94,19 @@ export default function InstalacionesPublic({ slug }) {
   }, [load]);
 
   useEffect(() => {
+    let pollTimer = null;
+    const clearPoll = () => {
+      if (pollTimer != null) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+      }
+    };
+    const startPoll = () => {
+      clearPoll();
+      const ms = document.visibilityState === "visible" ? POLL_MS_VISIBLE : POLL_MS_HIDDEN;
+      pollTimer = setInterval(load, ms);
+    };
+
     const onVis = () => {
       if (document.visibilityState === "visible") {
         load();
@@ -88,6 +116,15 @@ export default function InstalacionesPublic({ slug }) {
           } catch (_) {}
         });
       }
+      startPoll();
+    };
+    const onFocus = () => {
+      load();
+      queueMicrotask(() => {
+        try {
+          mapRef.current?.invalidateSize();
+        } catch (_) {}
+      });
     };
     const onResize = () => {
       try {
@@ -96,11 +133,15 @@ export default function InstalacionesPublic({ slug }) {
     };
     document.addEventListener("visibilitychange", onVis);
     window.addEventListener("resize", onResize);
-    const t = setInterval(load, 20000);
+    window.addEventListener("focus", onFocus);
+    window.addEventListener("pageshow", onFocus);
+    startPoll();
     return () => {
       document.removeEventListener("visibilitychange", onVis);
       window.removeEventListener("resize", onResize);
-      clearInterval(t);
+      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("pageshow", onFocus);
+      clearPoll();
     };
   }, [load]);
 
@@ -175,7 +216,11 @@ export default function InstalacionesPublic({ slug }) {
       });
       markersRef.current = [];
 
-      const withCoords = data.locations.filter(
+      const q = (typeof searchRef.current === "string" ? searchRef.current : "").trim();
+      const baseLocs = data.locations;
+      const visibleLocs = q ? baseLocs.filter((l) => locationMatchesQuery(l, q)) : baseLocs;
+
+      const withCoords = visibleLocs.filter(
         (l) => typeof l.lat === "number" && typeof l.lng === "number"
       );
 
@@ -220,7 +265,23 @@ export default function InstalacionesPublic({ slug }) {
         } catch (_) {}
       }
     };
-  }, [data, loading]);
+  }, [data, loading, search]);
+
+  const filteredLocations = useMemo(() => {
+    if (!data?.locations) return [];
+    return data.locations.filter((l) => locationMatchesQuery(l, search));
+  }, [data, search]);
+
+  const withCoordsCount = useMemo(() => {
+    if (!data?.locations) return 0;
+    return data.locations.filter((l) => typeof l.lat === "number" && typeof l.lng === "number").length;
+  }, [data]);
+
+  const filteredWithCoordsCount = useMemo(
+    () =>
+      filteredLocations.filter((l) => typeof l.lat === "number" && typeof l.lng === "number").length,
+    [filteredLocations]
+  );
 
   if (loading && !data) {
     return (
@@ -239,9 +300,6 @@ export default function InstalacionesPublic({ slug }) {
   }
 
   const pct = data.total ? Math.round((data.installedCount / data.total) * 100) : 0;
-  const withCoordsCount = data.locations.filter(
-    (l) => typeof l.lat === "number" && typeof l.lng === "number"
-  ).length;
 
   return (
     <div className="min-h-dvh bg-stone-100 text-stone-900 pb-8">
@@ -256,8 +314,28 @@ export default function InstalacionesPublic({ slug }) {
             style={{ width: `${pct}%` }}
           />
         </div>
+        <label className="sr-only" htmlFor="inst-search">
+          Buscar ubicación
+        </label>
+        <input
+          id="inst-search"
+          type="search"
+          enterKeyHint="search"
+          autoComplete="off"
+          placeholder="Buscar N°, dirección, referencia…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="mt-3 w-full px-3 py-2.5 rounded-xl border border-stone-200 bg-stone-50 text-stone-900 placeholder:text-stone-400 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+        />
+        {search.trim() ? (
+          <p className="text-xs text-stone-500 mt-1.5">
+            {filteredLocations.length === 0
+              ? "Ningún resultado"
+              : `${filteredLocations.length} resultado${filteredLocations.length !== 1 ? "s" : ""}`}
+          </p>
+        ) : null}
         <p className="text-xs text-stone-400 mt-2">
-          Mapa arriba · lista abajo. Tocá un punto del mapa o un renglón para marcar.
+          Mapa arriba · lista abajo. Tocá para marcar. Se actualiza casi al instante entre equipos (~{POLL_MS_VISIBLE / 1000}s).
         </p>
       </header>
 
@@ -271,6 +349,10 @@ export default function InstalacionesPublic({ slug }) {
           {withCoordsCount === 0 ? (
             <div className="absolute inset-0 flex items-center justify-center text-sm text-stone-500 px-4 text-center z-[1] pointer-events-none">
               Estas ubicaciones no tienen coordenadas en el mapa.
+            </div>
+          ) : search.trim() && filteredWithCoordsCount === 0 ? (
+            <div className="absolute inset-0 flex items-center justify-center text-sm text-stone-500 px-4 text-center z-[1] pointer-events-none">
+              Ninguno de los resultados tiene ubicación en el mapa.
             </div>
           ) : null}
         </div>
@@ -287,7 +369,10 @@ export default function InstalacionesPublic({ slug }) {
       </div>
 
       <ul className="px-3 pt-1 space-y-2 max-w-lg mx-auto">
-        {data.locations.map((loc) => {
+        {filteredLocations.length === 0 && search.trim() ? (
+          <li className="text-center text-sm text-stone-500 py-8">Probá con otro texto de búsqueda.</li>
+        ) : null}
+        {filteredLocations.map((loc) => {
           const busy = pendingId === loc.id;
           return (
             <li key={loc.id}>
