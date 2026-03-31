@@ -14,23 +14,36 @@ export default function InstalacionesPublic({ slug }) {
   const mapRef = useRef(null);
   const markersRef = useRef([]);
   const LRef = useRef(null);
+  const dataRef = useRef(null);
+  const slugRef = useRef(slug);
+  const toggleRef = useRef(() => {});
+
+  slugRef.current = slug;
 
   const load = useCallback(async () => {
+    const requestedSlug = slug;
     try {
-      const r = await fetch(`/api/installations/${slug}`, { cache: "no-store" });
+      const r = await fetch(`/api/installations/${requestedSlug}`, { cache: "no-store" });
       if (!r.ok) {
-        setError(r.status === 404 ? "Lista no encontrada" : "Error al cargar");
-        setData(null);
+        if (requestedSlug !== slugRef.current) return;
+        if (r.status === 404) {
+          setError("Lista no encontrada");
+          setData(null);
+        }
         return;
       }
       const j = await r.json();
+      if (requestedSlug !== slugRef.current) return;
       setData(j);
       setError(null);
     } catch {
-      setError("Error de red");
-      setData(null);
+      if (requestedSlug !== slugRef.current) return;
+      if (dataRef.current == null) {
+        setError("Error de red");
+        setData(null);
+      }
     } finally {
-      setLoading(false);
+      if (requestedSlug === slugRef.current) setLoading(false);
     }
   }, [slug]);
 
@@ -56,18 +69,37 @@ export default function InstalacionesPublic({ slug }) {
     [slug, load]
   );
 
+  toggleRef.current = toggle;
+  useEffect(() => {
+    dataRef.current = data;
+  }, [data]);
+
   useEffect(() => {
     load();
   }, [load]);
 
   useEffect(() => {
     const onVis = () => {
-      if (document.visibilityState === "visible") load();
+      if (document.visibilityState === "visible") {
+        load();
+        queueMicrotask(() => {
+          try {
+            mapRef.current?.invalidateSize();
+          } catch (_) {}
+        });
+      }
+    };
+    const onResize = () => {
+      try {
+        mapRef.current?.invalidateSize();
+      } catch (_) {}
     };
     document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("resize", onResize);
     const t = setInterval(load, 20000);
     return () => {
       document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("resize", onResize);
       clearInterval(t);
     };
   }, [load]);
@@ -94,6 +126,18 @@ export default function InstalacionesPublic({ slug }) {
     if (!data || loading || !mapContainerRef.current) return;
 
     let cancelled = false;
+    let resizeObserver = null;
+    const containerEl = mapContainerRef.current;
+
+    const scheduleInvalidate = () => {
+      [0, 120, 400, 900].forEach((ms) => {
+        setTimeout(() => {
+          try {
+            if (mapRef.current && !cancelled) mapRef.current.invalidateSize();
+          } catch (_) {}
+        }, ms);
+      });
+    };
 
     (async () => {
       const L = (await import("leaflet")).default;
@@ -102,15 +146,28 @@ export default function InstalacionesPublic({ slug }) {
       if (cancelled || !mapContainerRef.current) return;
 
       if (!mapRef.current) {
-        const map = L.map(mapContainerRef.current).setView(DEFAULT_CENTER, DEFAULT_ZOOM);
+        const el = mapContainerRef.current;
+        const map = L.map(el, { zoomControl: true }).setView(DEFAULT_CENTER, DEFAULT_ZOOM);
         L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
           attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
           maxZoom: 19,
         }).addTo(map);
         mapRef.current = map;
+        scheduleInvalidate();
+
+        if (!cancelled) {
+          resizeObserver = new ResizeObserver(() => {
+            try {
+              mapRef.current?.invalidateSize({ animate: false });
+            } catch (_) {}
+          });
+          resizeObserver.observe(el);
+        }
       }
 
       const map = mapRef.current;
+      if (!map || cancelled) return;
+
       markersRef.current.forEach((m) => {
         try {
           m.remove();
@@ -136,24 +193,34 @@ export default function InstalacionesPublic({ slug }) {
           direction: "top",
           offset: [0, -8],
         });
-        m.on("click", () => toggle(loc, loc.installed));
+        const id = loc.id;
+        m.on("click", () => {
+          const cur = dataRef.current?.locations?.find((x) => x.id === id);
+          if (cur) toggleRef.current(cur, cur.installed);
+        });
         markersRef.current.push(m);
       });
 
-      if (withCoords.length > 0) {
-        const bounds = L.latLngBounds(withCoords.map((l) => [l.lat, l.lng]));
-        map.fitBounds(bounds, { padding: [32, 32], maxZoom: 16 });
-      } else {
-        map.setView(DEFAULT_CENTER, DEFAULT_ZOOM);
+      if (!cancelled && mapRef.current === map) {
+        if (withCoords.length > 0) {
+          const bounds = L.latLngBounds(withCoords.map((l) => [l.lat, l.lng]));
+          map.fitBounds(bounds, { padding: [32, 32], maxZoom: 16 });
+        } else {
+          map.setView(DEFAULT_CENTER, DEFAULT_ZOOM);
+        }
+        scheduleInvalidate();
       }
-
-      map.invalidateSize();
     })();
 
     return () => {
       cancelled = true;
+      if (resizeObserver && containerEl) {
+        try {
+          resizeObserver.disconnect();
+        } catch (_) {}
+      }
     };
-  }, [data, loading, toggle]);
+  }, [data, loading]);
 
   if (loading && !data) {
     return (
@@ -195,8 +262,12 @@ export default function InstalacionesPublic({ slug }) {
       </header>
 
       <div className="px-0 pt-0 max-w-lg mx-auto w-full">
-        <div className="relative w-full h-[min(42vh,280px)] min-h-[200px] bg-stone-200 border-b border-stone-200">
-          <div ref={mapContainerRef} className="absolute inset-0 z-0 leaflet-instalaciones" />
+        <div className="relative w-full h-[min(42vh,280px)] min-h-[200px] bg-stone-200 border-b border-stone-200 isolate">
+          <div
+            ref={mapContainerRef}
+            className="absolute inset-0 z-0 leaflet-instalaciones w-full h-full"
+            style={{ minHeight: 200 }}
+          />
           {withCoordsCount === 0 ? (
             <div className="absolute inset-0 flex items-center justify-center text-sm text-stone-500 px-4 text-center z-[1] pointer-events-none">
               Estas ubicaciones no tienen coordenadas en el mapa.
@@ -278,6 +349,9 @@ export default function InstalacionesPublic({ slug }) {
           box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
         }
         .leaflet-instalaciones .leaflet-container {
+          width: 100% !important;
+          height: 100% !important;
+          z-index: 0;
           font-family: system-ui, -apple-system, sans-serif;
         }
       `}</style>
