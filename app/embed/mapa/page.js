@@ -114,7 +114,7 @@ export default function EmbedMapaPage() {
       });
       const marker = L.marker([lat, lng], { icon }).addTo(map);
       const statusLabel = isAvailable ? "Disponible" : "No disponible";
-      const selectText = isAvailable ? (isSelected ? "Seleccionado ✓" : "Tocá para seleccionar") : "";
+      const selectText = isAvailable ? (isSelected ? "Seleccionado ✓" : "Clic en el marcador para seleccionar") : "";
       const addr = (loc.address || "Sin dirección").replace(/</g, "&lt;").replace(/>/g, "&gt;");
       const rentedBySafe = (loc.rentedBy || "").replace(/</g, "&lt;").replace(/>/g, "&gt;");
       const renterBlock =
@@ -132,7 +132,13 @@ export default function EmbedMapaPage() {
           ${selectText ? `<div class="embed-popup-action">${selectText}</div>` : ""}
         </div>
       `;
-      marker.bindPopup(popupContent, { className: "embed-popup-wrap", closeButton: true, maxWidth: 260, minWidth: 180 });
+      marker.bindTooltip(popupContent, {
+        className: "embed-hover-tooltip",
+        direction: "top",
+        offset: [0, -8],
+        opacity: 1,
+        sticky: true,
+      });
       marker.on("click", () => {
         if (toggleRef.current) toggleRef.current(loc.id, loc.status);
       });
@@ -372,17 +378,18 @@ export default function EmbedMapaPage() {
           50% { box-shadow: 0 0 0 8px rgba(251,191,36,0.35), 0 2px 8px rgba(0,0,0,0.3); }
         }
         .leaflet-container { font-family: inherit; }
-        .embed-popup-wrap .leaflet-popup-content-wrapper {
-          border-radius: 12px;
-          padding: 0;
-          box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        .embed-hover-tooltip {
+          background: #fff !important;
+          color: #1c1917 !important;
+          border: 1px solid #e7e5e4 !important;
+          border-radius: 12px !important;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.15) !important;
+          padding: 0 !important;
+          max-width: min(280px, 92vw);
+          white-space: normal;
         }
-        .embed-popup-wrap .leaflet-popup-content {
-          margin: 0;
-          padding: 0;
-        }
-        .embed-popup-wrap .leaflet-popup-tip {
-          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        .embed-hover-tooltip::before {
+          display: none;
         }
         .embed-popup {
           padding: 14px 16px;
