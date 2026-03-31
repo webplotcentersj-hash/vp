@@ -4,12 +4,14 @@ import pool from "@/lib/db";
 function formatLocation(row) {
   const lat = row.lat != null ? Number(row.lat) : null;
   const lng = row.lng != null ? Number(row.lng) : null;
+  const rentedBy = row.current_client_name ? String(row.current_client_name).trim() : null;
   return {
     id: Number(row.id),
     address: row.address ?? "",
     reference: row.reference ?? "",
     measurements: row.measurements ?? "",
     status: row.status ?? "available",
+    rentedBy: rentedBy || undefined,
     lat,
     lng,
     coordinates: lat != null && lng != null && Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : undefined,
@@ -18,9 +20,19 @@ function formatLocation(row) {
 
 export async function GET() {
   try {
-    const [rows] = await pool.execute(
-      "SELECT id, address, reference, measurements, lat, lng, status FROM locations ORDER BY id ASC"
-    );
+    const [rows] = await pool.execute(`
+      SELECT l.id, l.address, l.reference, l.measurements, l.lat, l.lng, l.status,
+        (
+          SELECT c.name
+          FROM rentals r
+          INNER JOIN clients c ON r.clientId = c.id
+          WHERE r.locationId = l.id AND CURDATE() BETWEEN r.startDate AND r.endDate
+          ORDER BY r.endDate DESC
+          LIMIT 1
+        ) AS current_client_name
+      FROM locations l
+      ORDER BY l.id ASC
+    `);
     return NextResponse.json(rows.map(formatLocation));
   } catch (e) {
     console.error("Locations GET:", e);

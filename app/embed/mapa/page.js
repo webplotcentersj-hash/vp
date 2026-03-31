@@ -74,7 +74,8 @@ export default function EmbedMapaPage() {
       if (
         !String(loc.id).includes(q) &&
         !(loc.address || "").toLowerCase().includes(q) &&
-        !(loc.reference || "").toLowerCase().includes(q)
+        !(loc.reference || "").toLowerCase().includes(q) &&
+        !(loc.rentedBy || "").toLowerCase().includes(q)
       ) {
         return false;
       }
@@ -115,11 +116,19 @@ export default function EmbedMapaPage() {
       const statusLabel = isAvailable ? "Disponible" : "No disponible";
       const selectText = isAvailable ? (isSelected ? "Seleccionado ✓" : "Tocá para seleccionar") : "";
       const addr = (loc.address || "Sin dirección").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      const rentedBySafe = (loc.rentedBy || "").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      const renterBlock =
+        !isAvailable && rentedBySafe
+          ? `<div class="embed-popup-renter">Alquilado por <strong>${rentedBySafe}</strong></div>`
+          : !isAvailable
+            ? `<div class="embed-popup-renter muted">Alquiler (cliente sin dato)</div>`
+            : "";
       const popupContent = `
         <div class="embed-popup">
           <div class="embed-popup-header">N° ${loc.id}</div>
           <div class="embed-popup-addr">${addr}</div>
           <div class="embed-popup-status" style="color:${baseColor};">${statusLabel}</div>
+          ${renterBlock}
           ${selectText ? `<div class="embed-popup-action">${selectText}</div>` : ""}
         </div>
       `;
@@ -396,6 +405,22 @@ export default function EmbedMapaPage() {
           font-size: 12px;
           font-weight: 600;
           margin-bottom: 4px;
+        }
+        .embed-popup-renter {
+          font-size: 12px;
+          color: #57534e;
+          line-height: 1.35;
+          margin-bottom: 6px;
+          padding: 6px 8px;
+          background: #fef3c7;
+          border-radius: 8px;
+          border: 1px solid #fde68a;
+        }
+        .embed-popup-renter.muted {
+          background: #f5f5f4;
+          border-color: #e7e5e4;
+          color: #78716c;
+          font-style: italic;
         }
         .embed-popup-action {
           font-size: 11px;
