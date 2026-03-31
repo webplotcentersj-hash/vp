@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 const nav = [
   { href: "/admin", label: "Dashboard", icon: "📊" },
   { href: "/admin/ubicaciones", label: "Ubicaciones", icon: "📍" },
+  { href: "/admin/instalaciones", label: "Instalaciones", icon: "🔧" },
   { href: "/admin/clientes", label: "Clientes", icon: "👥" },
   { href: "/admin/alquileres", label: "Alquileres", icon: "📄" },
   { href: "/admin/estadisticas", label: "Estadísticas", icon: "📈" },
