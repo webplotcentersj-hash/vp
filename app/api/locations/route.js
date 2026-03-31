@@ -5,6 +5,9 @@ function formatLocation(row) {
   const lat = row.lat != null ? Number(row.lat) : null;
   const lng = row.lng != null ? Number(row.lng) : null;
   const rentedBy = row.current_client_name ? String(row.current_client_name).trim() : null;
+  const rentedUntilRaw = row.rental_until_display;
+  const rentedUntil =
+    rentedUntilRaw != null && String(rentedUntilRaw).trim() ? String(rentedUntilRaw).trim() : undefined;
   return {
     id: Number(row.id),
     address: row.address ?? "",
@@ -12,6 +15,7 @@ function formatLocation(row) {
     measurements: row.measurements ?? "",
     status: row.status ?? "available",
     rentedBy: rentedBy || undefined,
+    rentedUntil: rentedUntil || undefined,
     lat,
     lng,
     coordinates: lat != null && lng != null && Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : undefined,
@@ -29,7 +33,14 @@ export async function GET() {
           WHERE r.locationId = l.id AND CURDATE() BETWEEN r.startDate AND r.endDate
           ORDER BY r.endDate DESC
           LIMIT 1
-        ) AS current_client_name
+        ) AS current_client_name,
+        (
+          SELECT DATE_FORMAT(r.endDate, '%d/%m/%Y')
+          FROM rentals r
+          WHERE r.locationId = l.id AND CURDATE() BETWEEN r.startDate AND r.endDate
+          ORDER BY r.endDate DESC
+          LIMIT 1
+        ) AS rental_until_display
       FROM locations l
       ORDER BY l.id ASC
     `);

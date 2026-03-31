@@ -114,20 +114,30 @@ export default function EmbedMapaPage() {
       });
       const marker = L.marker([lat, lng], { icon }).addTo(map);
       const statusLabel = isAvailable ? "Disponible" : "No disponible";
-      const selectText = isAvailable ? (isSelected ? "Seleccionado ✓" : "Clic en el marcador para seleccionar") : "";
+      const selectText = isAvailable ? (isSelected ? "✓ Seleccionado" : "Clic → seleccionar") : "";
       const addr = (loc.address || "Sin dirección").replace(/</g, "&lt;").replace(/>/g, "&gt;");
       const rentedBySafe = (loc.rentedBy || "").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      const rentedUntilSafe = (loc.rentedUntil || "").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      const untilBlock =
+        !isAvailable && rentedUntilSafe
+          ? `<div class="embed-popup-until">Hasta <strong>${rentedUntilSafe}</strong></div>`
+          : "";
       const renterBlock =
         !isAvailable && rentedBySafe
-          ? `<div class="embed-popup-renter">Alquilado por <strong>${rentedBySafe}</strong></div>`
+          ? `<div class="embed-popup-renter"><span class="embed-popup-renter-label">Alquila</span><span class="embed-popup-renter-name">${rentedBySafe}</span></div>`
           : !isAvailable
-            ? `<div class="embed-popup-renter muted">Alquiler (cliente sin dato)</div>`
+            ? `<div class="embed-popup-renter muted"><span>Cliente sin dato</span></div>`
             : "";
+      const pillBg = isAvailable ? "rgba(34,197,94,0.12)" : "rgba(239,68,68,0.12)";
+      const pillBorder = isAvailable ? "rgba(34,197,94,0.35)" : "rgba(239,68,68,0.35)";
       const popupContent = `
-        <div class="embed-popup">
-          <div class="embed-popup-header">N° ${loc.id}</div>
-          <div class="embed-popup-addr">${addr}</div>
-          <div class="embed-popup-status" style="color:${baseColor};">${statusLabel}</div>
+        <div class="embed-popup embed-popup-card">
+          <div class="embed-popup-row1">
+            <span class="embed-popup-num">N° ${loc.id}</span>
+            <span class="embed-popup-pill" style="color:${baseColor};background:${pillBg};border-color:${pillBorder};">${statusLabel}</span>
+          </div>
+          <div class="embed-popup-addr" title="${addr}">${addr}</div>
+          ${untilBlock}
           ${renterBlock}
           ${selectText ? `<div class="embed-popup-action">${selectText}</div>` : ""}
         </div>
@@ -379,60 +389,107 @@ export default function EmbedMapaPage() {
         }
         .leaflet-container { font-family: inherit; }
         .embed-hover-tooltip {
-          background: #fff !important;
+          background: linear-gradient(180deg, #fff 0%, #fafaf9 100%) !important;
           color: #1c1917 !important;
           border: 1px solid #e7e5e4 !important;
-          border-radius: 12px !important;
-          box-shadow: 0 4px 20px rgba(0,0,0,0.15) !important;
+          border-radius: 14px !important;
+          box-shadow: 0 8px 28px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06) !important;
           padding: 0 !important;
-          max-width: min(280px, 92vw);
+          min-width: 260px;
+          max-width: min(380px, 94vw);
           white-space: normal;
         }
         .embed-hover-tooltip::before {
           display: none;
         }
         .embed-popup {
-          padding: 14px 16px;
+          padding: 0;
           font-family: system-ui, -apple-system, sans-serif;
         }
-        .embed-popup-header {
-          font-size: 15px;
-          font-weight: 700;
+        .embed-popup-card {
+          padding: 10px 12px 10px;
+        }
+        .embed-popup-row1 {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+          margin-bottom: 6px;
+        }
+        .embed-popup-num {
+          font-size: 14px;
+          font-weight: 800;
           color: #1c1917;
-          margin-bottom: 4px;
+          letter-spacing: -0.02em;
+        }
+        .embed-popup-pill {
+          flex-shrink: 0;
+          font-size: 11px;
+          font-weight: 700;
+          padding: 3px 10px;
+          border-radius: 999px;
+          border: 1px solid;
         }
         .embed-popup-addr {
-          font-size: 13px;
-          color: #57534e;
-          line-height: 1.4;
-          margin-bottom: 8px;
-          word-break: break-word;
-        }
-        .embed-popup-status {
-          font-size: 12px;
-          font-weight: 600;
-          margin-bottom: 4px;
-        }
-        .embed-popup-renter {
           font-size: 12px;
           color: #57534e;
           line-height: 1.35;
           margin-bottom: 6px;
-          padding: 6px 8px;
-          background: #fef3c7;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+          word-break: break-word;
+        }
+        .embed-popup-until {
+          font-size: 11px;
+          color: #57534e;
+          margin-bottom: 5px;
+          padding: 4px 0;
+        }
+        .embed-popup-until strong {
+          color: #1c1917;
+          font-weight: 700;
+        }
+        .embed-popup-renter {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 11px;
+          line-height: 1.25;
+          margin-bottom: 4px;
+          padding: 5px 8px;
+          background: linear-gradient(90deg, #fef3c7 0%, #fffbeb 100%);
           border-radius: 8px;
-          border: 1px solid #fde68a;
+          border: 1px solid #fcd34d;
+        }
+        .embed-popup-renter-label {
+          flex-shrink: 0;
+          font-weight: 700;
+          text-transform: uppercase;
+          font-size: 9px;
+          letter-spacing: 0.06em;
+          color: #b45309;
+        }
+        .embed-popup-renter-name {
+          font-weight: 600;
+          color: #1c1917;
+          min-width: 0;
+          word-break: break-word;
         }
         .embed-popup-renter.muted {
           background: #f5f5f4;
           border-color: #e7e5e4;
           color: #78716c;
           font-style: italic;
+          font-size: 11px;
         }
         .embed-popup-action {
-          font-size: 11px;
+          font-size: 10px;
           color: #78716c;
-          font-style: italic;
+          margin-top: 2px;
+          padding-top: 4px;
+          border-top: 1px solid #e7e5e4;
         }
         @media (max-width: 480px) {
           .embed-header { padding: 10px 12px; }
