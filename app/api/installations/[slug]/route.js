@@ -21,7 +21,7 @@ export async function GET(request, context) {
 
     const [items] = await pool.execute(
       `
-      SELECT loc.id, loc.address, loc.reference,
+      SELECT loc.id, loc.address, loc.reference, loc.lat, loc.lng,
         CASE WHEN ic.location_id IS NULL THEN 0 ELSE 1 END AS installed,
         ic.marked_at AS markedAt
       FROM installation_list_locations ill
@@ -33,13 +33,19 @@ export async function GET(request, context) {
       [listId]
     );
 
-    const locations = (items || []).map((row) => ({
-      id: Number(row.id),
-      address: row.address ?? "",
-      reference: row.reference ?? "",
-      installed: Number(row.installed) === 1,
-      markedAt: row.markedAt ? String(row.markedAt) : null,
-    }));
+    const locations = (items || []).map((row) => {
+      const lat = row.lat != null ? Number(row.lat) : null;
+      const lng = row.lng != null ? Number(row.lng) : null;
+      return {
+        id: Number(row.id),
+        address: row.address ?? "",
+        reference: row.reference ?? "",
+        installed: Number(row.installed) === 1,
+        markedAt: row.markedAt ? String(row.markedAt) : null,
+        lat: Number.isFinite(lat) ? lat : null,
+        lng: Number.isFinite(lng) ? lng : null,
+      };
+    });
 
     const installedCount = locations.filter((l) => l.installed).length;
 
