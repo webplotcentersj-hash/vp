@@ -289,6 +289,10 @@ export default function InstalacionesAdminPage() {
 
       <section className="bg-white rounded-xl border border-stone-200 p-4 space-y-4">
         <h2 className="font-bold text-black text-lg">Listas activas</h2>
+        <p className="text-sm text-stone-600 max-w-3xl">
+          Son las instalaciones con link para el equipo. Podés <span className="font-medium text-stone-800">Editar</span> título
+          y ubicaciones en cualquier momento; la URL pública no cambia.
+        </p>
         {lists.length === 0 ? (
           <p className="text-sm text-stone-500">Todavía no hay listas. Creá una abajo.</p>
         ) : (
