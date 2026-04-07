@@ -17,7 +17,6 @@ export default function InstalacionesAdminPage() {
   const [editSlug, setEditSlug] = useState("");
   const [editSelected, setEditSelected] = useState(() => new Set());
   const [editSearch, setEditSearch] = useState("");
-  const [editAddById, setEditAddById] = useState("");
   const [editLoading, setEditLoading] = useState(false);
   const [editSaving, setEditSaving] = useState(false);
 
@@ -167,7 +166,6 @@ export default function InstalacionesAdminPage() {
     setEditTitle(row.title ?? "");
     setEditSlug(row.publicSlug ?? "");
     setEditSearch("");
-    setEditAddById("");
     setEditLoading(true);
     setEditSelected(new Set());
     try {
@@ -197,7 +195,6 @@ export default function InstalacionesAdminPage() {
     setEditTitle("");
     setEditSlug("");
     setEditSearch("");
-    setEditAddById("");
     setEditSelected(new Set());
   }
 
@@ -218,26 +215,6 @@ export default function InstalacionesAdminPage() {
       filteredEditSorted.forEach((l) => next.add(Number(l.id)));
       return next;
     });
-  }
-
-  function addLocationByNumber() {
-    const n = parseInt(String(editAddById).trim(), 10);
-    if (!Number.isFinite(n) || n < 1) {
-      alert("Ingresá un número de ubicación (N° chupete) válido.");
-      return;
-    }
-    const loc = locations.find((l) => Number(l.id) === n);
-    if (!loc) {
-      alert(`No existe la ubicación N° ${n} en la base. Creala antes en Ubicaciones.`);
-      return;
-    }
-    if (editSelected.has(n)) {
-      alert(`El N° ${n} ya está en la lista.`);
-      setEditAddById("");
-      return;
-    }
-    setEditSelected((prev) => new Set(prev).add(n));
-    setEditAddById("");
   }
 
   function clearEditSelection() {
@@ -452,35 +429,9 @@ export default function InstalacionesAdminPage() {
                     />
                   </div>
                   <p className="text-sm text-stone-600">
-                    {editSelected.size} ubicación{editSelected.size !== 1 ? "es" : ""} en la lista · marcá filas abajo o
-                    sumá por N°
+                    {editSelected.size} ubicación{editSelected.size !== 1 ? "es" : ""} en la lista. Marcá o desmarcá filas
+                    abajo.
                   </p>
-                  <div className="flex flex-wrap gap-2 items-end p-3 rounded-lg bg-green-50 border border-green-200">
-                    <div className="flex-1 min-w-[140px]">
-                      <label className="block text-xs font-medium text-green-900 mb-1">Agregar ubicación por N°</label>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        value={editAddById}
-                        onChange={(e) => setEditAddById(e.target.value)}
-                        placeholder="Ej. 42"
-                        className="w-full px-3 py-2 border border-green-200 rounded-lg text-black"
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            addLocationByNumber();
-                          }
-                        }}
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={addLocationByNumber}
-                      className="px-3 py-2 text-sm bg-green-700 text-white rounded-lg hover:bg-green-800 shrink-0"
-                    >
-                      Incluir en la lista
-                    </button>
-                  </div>
                   <div className="flex flex-wrap gap-2 items-center">
                     <input
                       type="search"

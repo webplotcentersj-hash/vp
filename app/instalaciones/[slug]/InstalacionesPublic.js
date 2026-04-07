@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import InstalacionesAuditoria from "./InstalacionesAuditoria";
 
 function locationMatchesQuery(loc, q) {
   const s = q.trim().toLowerCase();
@@ -23,6 +24,7 @@ export default function InstalacionesPublic({ slug }) {
   const [loading, setLoading] = useState(true);
   const [pendingId, setPendingId] = useState(null);
   const [search, setSearch] = useState("");
+  const [tab, setTab] = useState("instalacion");
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
   const markersRef = useRef([]);
@@ -164,7 +166,7 @@ export default function InstalacionesPublic({ slug }) {
   }, [slug]);
 
   useEffect(() => {
-    if (!data || loading || !mapContainerRef.current) return;
+    if (tab !== "instalacion" || !data || loading || !mapContainerRef.current) return;
 
     let cancelled = false;
     let resizeObserver = null;
@@ -265,7 +267,7 @@ export default function InstalacionesPublic({ slug }) {
         } catch (_) {}
       }
     };
-  }, [data, loading, search]);
+  }, [data, loading, search, tab]);
 
   const filteredLocations = useMemo(() => {
     if (!data?.locations) return [];
@@ -314,6 +316,26 @@ export default function InstalacionesPublic({ slug }) {
             style={{ width: `${pct}%` }}
           />
         </div>
+        <div className="flex items-center gap-2 mt-3">
+          <button
+            type="button"
+            onClick={() => setTab("instalacion")}
+            className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
+              tab === "instalacion" ? "bg-orange-600 text-white shadow-sm" : "bg-stone-100 text-stone-600"
+            }`}
+          >
+            Instalación
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab("auditoria")}
+            className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
+              tab === "auditoria" ? "bg-orange-600 text-white shadow-sm" : "bg-stone-100 text-stone-600"
+            }`}
+          >
+            Auditoría
+          </button>
+        </div>
         <label className="sr-only" htmlFor="inst-search">
           Buscar ubicación
         </label>
@@ -334,12 +356,22 @@ export default function InstalacionesPublic({ slug }) {
               : `${filteredLocations.length} resultado${filteredLocations.length !== 1 ? "s" : ""}`}
           </p>
         ) : null}
-        <p className="text-xs text-stone-400 mt-2">
-          Mapa arriba · lista abajo. Tocá para marcar. Se actualiza casi al instante entre equipos (~{POLL_MS_VISIBLE / 1000}s).
-        </p>
+        {tab === "instalacion" ? (
+          <p className="text-xs text-stone-400 mt-2">
+            Mapa arriba · lista abajo. Tocá para marcar. Se actualiza casi al instante entre equipos (~{POLL_MS_VISIBLE / 1000}s).
+          </p>
+        ) : (
+          <p className="text-xs text-stone-400 mt-2">
+            Subí fotos por chupete para relevar el estado en campo. La búsqueda filtra la lista.
+          </p>
+        )}
       </header>
 
-      <div className="px-0 pt-0 max-w-lg mx-auto w-full">
+      {tab === "auditoria" ? (
+        <InstalacionesAuditoria slug={slug} locations={filteredLocations} />
+      ) : null}
+
+      <div className={`px-0 pt-0 max-w-lg mx-auto w-full ${tab !== "instalacion" ? "hidden" : ""}`}>
         <div className="relative w-full h-[min(42vh,280px)] min-h-[200px] bg-stone-200 border-b border-stone-200 isolate">
           <div
             ref={mapContainerRef}
@@ -368,7 +400,7 @@ export default function InstalacionesPublic({ slug }) {
         </div>
       </div>
 
-      <ul className="px-3 pt-1 space-y-2 max-w-lg mx-auto">
+      <ul className={`px-3 pt-1 space-y-2 max-w-lg mx-auto ${tab !== "instalacion" ? "hidden" : ""}`}>
         {filteredLocations.length === 0 && search.trim() ? (
           <li className="text-center text-sm text-stone-500 py-8">Probá con otro texto de búsqueda.</li>
         ) : null}
