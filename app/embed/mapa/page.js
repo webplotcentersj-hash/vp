@@ -5,6 +5,11 @@ import { useState, useEffect, useRef } from "react";
 const DEFAULT_CENTER = [-31.5375, -68.5364];
 const DEFAULT_ZOOM = 13;
 const WHATSAPP_NUMBER = "2644442538";
+const PIN_SIZE = 44;
+const PIN_ICON_WIDTH = PIN_SIZE + 4;
+const PIN_ICON_HEIGHT = PIN_SIZE + 12;
+const PIN_LOGO_IMG = Math.round(PIN_SIZE * 0.6875);
+const PIN_FONT_SIZE = Math.round(PIN_SIZE * 0.34375);
 
 export default function EmbedMapaPage() {
   const [locations, setLocations] = useState([]);
@@ -118,8 +123,8 @@ export default function EmbedMapaPage() {
       const icon = L.divIcon({
         className: "embed-marker-wrap",
         html: markerHtml,
-        iconSize: [36, 44],
-        iconAnchor: [18, 44],
+        iconSize: [PIN_ICON_WIDTH, PIN_ICON_HEIGHT],
+        iconAnchor: [PIN_ICON_WIDTH / 2, PIN_ICON_HEIGHT],
       });
       const marker = L.marker([lat, lng], { icon }).addTo(map);
       const statusLabel = isAvailable ? "Disponible" : "No disponible";
@@ -159,7 +164,7 @@ export default function EmbedMapaPage() {
       marker.bindTooltip(popupContent, {
         className: "embed-hover-tooltip",
         direction: "top",
-        offset: [0, -8],
+        offset: [0, -12],
         opacity: 1,
         sticky: true,
       });
@@ -385,11 +390,11 @@ export default function EmbedMapaPage() {
           display: flex;
           align-items: center;
           justify-content: center;
-          width: 32px;
-          height: 32px;
+          width: ${PIN_SIZE}px;
+          height: ${PIN_SIZE}px;
           border-radius: 50% 50% 50% 0;
           color: #fff;
-          font-size: 11px;
+          font-size: ${PIN_FONT_SIZE}px;
           font-weight: 700;
           box-shadow: 0 2px 8px rgba(0,0,0,0.3);
           transition: transform 0.15s;
@@ -404,11 +409,11 @@ export default function EmbedMapaPage() {
         .embed-marker-with-logo {
           background: #fff;
           overflow: hidden;
-          padding: 3px;
+          padding: 4px;
         }
         .embed-marker-logo-img {
-          width: 22px;
-          height: 22px;
+          width: ${PIN_LOGO_IMG}px;
+          height: ${PIN_LOGO_IMG}px;
           object-fit: contain;
           transform: rotate(45deg);
           display: block;
