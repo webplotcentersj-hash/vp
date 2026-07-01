@@ -5,11 +5,12 @@ import { useState, useEffect, useRef } from "react";
 const DEFAULT_CENTER = [-31.5375, -68.5364];
 const DEFAULT_ZOOM = 13;
 const WHATSAPP_NUMBER = "2644442538";
-const PIN_SIZE = 44;
+const PIN_SIZE = 56;
 const PIN_ICON_WIDTH = PIN_SIZE + 4;
 const PIN_ICON_HEIGHT = PIN_SIZE + 12;
-const PIN_LOGO_IMG = Math.round(PIN_SIZE * 0.6875);
-const PIN_FONT_SIZE = Math.round(PIN_SIZE * 0.34375);
+const PIN_LOGO_IMG = Math.round(PIN_SIZE * 0.78);
+const PIN_FONT_SIZE = Math.round(PIN_SIZE * 0.36);
+const PIN_LOGO_BORDER = 3;
 
 export default function EmbedMapaPage() {
   const [locations, setLocations] = useState([]);
@@ -116,7 +117,7 @@ export default function EmbedMapaPage() {
         : "";
       const useLogoMarker = !isAvailable && Boolean(logoUrlSafe);
       const pinBorderColor = useLogoMarker ? "#ef4444" : borderColor;
-      const pinBorderWidth = useLogoMarker ? 2 : borderWidth;
+      const pinBorderWidth = useLogoMarker ? PIN_LOGO_BORDER : borderWidth;
       const markerHtml = useLogoMarker
         ? `<span class="embed-marker embed-marker-with-logo" style="border:${pinBorderWidth}px solid ${pinBorderColor};transform:rotate(-45deg) scale(${scale});"><img class="embed-marker-logo-img" src="${logoUrlSafe}" alt="" loading="lazy" /></span>`
         : `<span class="embed-marker${isSelected ? " selected" : ""}" style="background:${baseColor};border:${pinBorderWidth}px solid ${pinBorderColor};transform:rotate(-45deg) scale(${scale});">${loc.id}</span>`;
@@ -164,7 +165,7 @@ export default function EmbedMapaPage() {
       marker.bindTooltip(popupContent, {
         className: "embed-hover-tooltip",
         direction: "top",
-        offset: [0, -12],
+        offset: [0, -Math.round(PIN_SIZE * 0.27)],
         opacity: 1,
         sticky: true,
       });
@@ -409,14 +410,20 @@ export default function EmbedMapaPage() {
         .embed-marker-with-logo {
           background: #fff;
           overflow: hidden;
-          padding: 4px;
+          padding: 2px;
         }
         .embed-marker-logo-img {
           width: ${PIN_LOGO_IMG}px;
           height: ${PIN_LOGO_IMG}px;
+          max-width: 100%;
+          max-height: 100%;
           object-fit: contain;
+          object-position: center;
           transform: rotate(45deg);
           display: block;
+          image-rendering: auto;
+          -webkit-backface-visibility: hidden;
+          backface-visibility: hidden;
         }
         .leaflet-container { font-family: inherit; }
         .embed-hover-tooltip {
