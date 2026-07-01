@@ -5,7 +5,6 @@ import { useState, useEffect, useRef } from "react";
 const DEFAULT_CENTER = [-31.5375, -68.5364];
 const DEFAULT_ZOOM = 13;
 const WHATSAPP_NUMBER = "2644442538";
-const LOGO_MARKER_SIZE = 64;
 
 export default function EmbedMapaPage() {
   const [locations, setLocations] = useState([]);
@@ -111,14 +110,16 @@ export default function EmbedMapaPage() {
         ? String(loc.rentedByLogo).replace(/"/g, "&quot;").replace(/</g, "&lt;")
         : "";
       const useLogoMarker = !isAvailable && Boolean(logoUrlSafe);
+      const pinBorderColor = useLogoMarker ? "#ef4444" : borderColor;
+      const pinBorderWidth = useLogoMarker ? 2 : borderWidth;
       const markerHtml = useLogoMarker
-        ? `<div class="embed-marker-logo-wrap"><img class="embed-marker-logo" src="${logoUrlSafe}" alt="" loading="lazy" /></div>`
-        : `<span class="embed-marker${isSelected ? " selected" : ""}" style="background:${baseColor};border:${borderWidth}px solid ${borderColor};transform:rotate(-45deg) scale(${scale});">${loc.id}</span>`;
+        ? `<span class="embed-marker embed-marker-with-logo" style="border:${pinBorderWidth}px solid ${pinBorderColor};transform:rotate(-45deg) scale(${scale});"><img class="embed-marker-logo-img" src="${logoUrlSafe}" alt="" loading="lazy" /></span>`
+        : `<span class="embed-marker${isSelected ? " selected" : ""}" style="background:${baseColor};border:${pinBorderWidth}px solid ${pinBorderColor};transform:rotate(-45deg) scale(${scale});">${loc.id}</span>`;
       const icon = L.divIcon({
         className: "embed-marker-wrap",
         html: markerHtml,
-        iconSize: useLogoMarker ? [LOGO_MARKER_SIZE, LOGO_MARKER_SIZE] : [36, 44],
-        iconAnchor: useLogoMarker ? [LOGO_MARKER_SIZE / 2, LOGO_MARKER_SIZE / 2] : [18, 44],
+        iconSize: [36, 44],
+        iconAnchor: [18, 44],
       });
       const marker = L.marker([lat, lng], { icon }).addTo(map);
       const statusLabel = isAvailable ? "Disponible" : "No disponible";
@@ -158,7 +159,7 @@ export default function EmbedMapaPage() {
       marker.bindTooltip(popupContent, {
         className: "embed-hover-tooltip",
         direction: "top",
-        offset: useLogoMarker ? [0, -Math.round(LOGO_MARKER_SIZE / 2 + 6)] : [0, -8],
+        offset: [0, -8],
         opacity: 1,
         sticky: true,
       });
@@ -400,21 +401,17 @@ export default function EmbedMapaPage() {
           0%, 100% { box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
           50% { box-shadow: 0 0 0 8px rgba(251,191,36,0.35), 0 2px 8px rgba(0,0,0,0.3); }
         }
-        .embed-marker-logo-wrap {
-          width: ${LOGO_MARKER_SIZE}px;
-          height: ${LOGO_MARKER_SIZE}px;
-          cursor: pointer;
-        }
-        .embed-marker-logo {
-          width: ${LOGO_MARKER_SIZE}px;
-          height: ${LOGO_MARKER_SIZE}px;
-          border-radius: 50%;
-          object-fit: contain;
+        .embed-marker-with-logo {
           background: #fff;
-          border: 3px solid #ef4444;
-          box-shadow: 0 3px 14px rgba(0,0,0,0.32);
+          overflow: hidden;
+          padding: 3px;
+        }
+        .embed-marker-logo-img {
+          width: 22px;
+          height: 22px;
+          object-fit: contain;
+          transform: rotate(45deg);
           display: block;
-          padding: 4px;
         }
         .leaflet-container { font-family: inherit; }
         .embed-hover-tooltip {
@@ -605,7 +602,7 @@ export default function EmbedMapaPage() {
           Ocupada (sin logo)
         </span>
         <span className="embed-legend-item">
-          <span className="embed-legend-dot" style={{ background: "#fff", border: "2px solid #ef4444", boxShadow: "inset 0 0 0 2px #fff" }} />
+          <span className="embed-legend-dot" style={{ background: "#fff", border: "2px solid #ef4444", borderRadius: "50% 50% 50% 0", transform: "rotate(-45deg)", width: 12, height: 12 }} />
           Ocupada (logo cliente)
         </span>
         <span className="embed-legend-item">
