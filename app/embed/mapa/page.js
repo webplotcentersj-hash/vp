@@ -5,6 +5,7 @@ import { useState, useEffect, useRef } from "react";
 const DEFAULT_CENTER = [-31.5375, -68.5364];
 const DEFAULT_ZOOM = 13;
 const WHATSAPP_NUMBER = "2644442538";
+const LOGO_MARKER_SIZE = 64;
 
 export default function EmbedMapaPage() {
   const [locations, setLocations] = useState([]);
@@ -106,11 +107,18 @@ export default function EmbedMapaPage() {
       const borderColor = isSelected ? "#fbbf24" : "#fff";
       const borderWidth = isSelected ? 4 : 2;
       const scale = isSelected ? 1.15 : 1;
+      const logoUrlSafe = loc.rentedByLogo
+        ? String(loc.rentedByLogo).replace(/"/g, "&quot;").replace(/</g, "&lt;")
+        : "";
+      const useLogoMarker = !isAvailable && Boolean(logoUrlSafe);
+      const markerHtml = useLogoMarker
+        ? `<div class="embed-marker-logo-wrap"><img class="embed-marker-logo" src="${logoUrlSafe}" alt="" loading="lazy" /></div>`
+        : `<span class="embed-marker${isSelected ? " selected" : ""}" style="background:${baseColor};border:${borderWidth}px solid ${borderColor};transform:rotate(-45deg) scale(${scale});">${loc.id}</span>`;
       const icon = L.divIcon({
         className: "embed-marker-wrap",
-        html: `<span class="embed-marker${isSelected ? " selected" : ""}" style="background:${baseColor};border:${borderWidth}px solid ${borderColor};transform:rotate(-45deg) scale(${scale});">${loc.id}</span>`,
-        iconSize: [36, 44],
-        iconAnchor: [18, 44],
+        html: markerHtml,
+        iconSize: useLogoMarker ? [LOGO_MARKER_SIZE, LOGO_MARKER_SIZE] : [36, 44],
+        iconAnchor: useLogoMarker ? [LOGO_MARKER_SIZE / 2, LOGO_MARKER_SIZE / 2] : [18, 44],
       });
       const marker = L.marker([lat, lng], { icon }).addTo(map);
       const statusLabel = isAvailable ? "Disponible" : "No disponible";
@@ -118,9 +126,6 @@ export default function EmbedMapaPage() {
       const addr = (loc.address || "Sin dirección").replace(/</g, "&lt;").replace(/>/g, "&gt;");
       const rentedBySafe = (loc.rentedBy || "").replace(/</g, "&lt;").replace(/>/g, "&gt;");
       const rentedUntilSafe = (loc.rentedUntil || "").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-      const logoUrlSafe = loc.rentedByLogo
-        ? String(loc.rentedByLogo).replace(/"/g, "&quot;").replace(/</g, "&lt;")
-        : "";
       const untilBlock =
         !isAvailable && rentedUntilSafe
           ? `<div class="embed-popup-until">Hasta <strong>${rentedUntilSafe}</strong></div>`
@@ -128,7 +133,6 @@ export default function EmbedMapaPage() {
       const renterBlock =
         !isAvailable && rentedBySafe
           ? `<div class="embed-popup-renter">
-              ${logoUrlSafe ? `<img class="embed-popup-renter-logo" src="${logoUrlSafe}" alt="" loading="lazy" />` : ""}
               <div class="embed-popup-renter-info">
                 <span class="embed-popup-renter-label">Alquila</span>
                 <span class="embed-popup-renter-name">${rentedBySafe}</span>
@@ -154,7 +158,7 @@ export default function EmbedMapaPage() {
       marker.bindTooltip(popupContent, {
         className: "embed-hover-tooltip",
         direction: "top",
-        offset: [0, -8],
+        offset: useLogoMarker ? [0, -Math.round(LOGO_MARKER_SIZE / 2 + 6)] : [0, -8],
         opacity: 1,
         sticky: true,
       });
@@ -396,6 +400,22 @@ export default function EmbedMapaPage() {
           0%, 100% { box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
           50% { box-shadow: 0 0 0 8px rgba(251,191,36,0.35), 0 2px 8px rgba(0,0,0,0.3); }
         }
+        .embed-marker-logo-wrap {
+          width: ${LOGO_MARKER_SIZE}px;
+          height: ${LOGO_MARKER_SIZE}px;
+          cursor: pointer;
+        }
+        .embed-marker-logo {
+          width: ${LOGO_MARKER_SIZE}px;
+          height: ${LOGO_MARKER_SIZE}px;
+          border-radius: 50%;
+          object-fit: contain;
+          background: #fff;
+          border: 3px solid #ef4444;
+          box-shadow: 0 3px 14px rgba(0,0,0,0.32);
+          display: block;
+          padding: 4px;
+        }
         .leaflet-container { font-family: inherit; }
         .embed-hover-tooltip {
           background: linear-gradient(180deg, #fff 0%, #fafaf9 100%) !important;
@@ -471,15 +491,6 @@ export default function EmbedMapaPage() {
           background: linear-gradient(90deg, #fef3c7 0%, #fffbeb 100%);
           border-radius: 8px;
           border: 1px solid #fcd34d;
-        }
-        .embed-popup-renter-logo {
-          width: 36px;
-          height: 36px;
-          border-radius: 8px;
-          object-fit: contain;
-          background: #fff;
-          border: 1px solid rgba(0,0,0,0.08);
-          flex-shrink: 0;
         }
         .embed-popup-renter-info {
           display: flex;
@@ -591,7 +602,11 @@ export default function EmbedMapaPage() {
         </span>
         <span className="embed-legend-item">
           <span className="embed-legend-dot" style={{ background: "#ef4444", border: "2px solid #fff" }} />
-          Ocupada
+          Ocupada (sin logo)
+        </span>
+        <span className="embed-legend-item">
+          <span className="embed-legend-dot" style={{ background: "#fff", border: "2px solid #ef4444", boxShadow: "inset 0 0 0 2px #fff" }} />
+          Ocupada (logo cliente)
         </span>
         <span className="embed-legend-item">
           <span className="embed-legend-dot" style={{ background: "#22c55e", border: "3px solid #fbbf24" }} />
