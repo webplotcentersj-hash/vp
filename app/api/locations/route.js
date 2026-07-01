@@ -8,6 +8,8 @@ function formatLocation(row) {
   const rentedUntilRaw = row.rental_until_display;
   const rentedUntil =
     rentedUntilRaw != null && String(rentedUntilRaw).trim() ? String(rentedUntilRaw).trim() : undefined;
+  const clientId = row.current_client_id != null ? Number(row.current_client_id) : null;
+  const hasClientLogo = Number(row.current_client_has_logo) === 1;
   return {
     id: Number(row.id),
     address: row.address ?? "",
@@ -16,6 +18,8 @@ function formatLocation(row) {
     status: row.status ?? "available",
     rentedBy: rentedBy || undefined,
     rentedUntil: rentedUntil || undefined,
+    rentedByLogo:
+      clientId && hasClientLogo ? `/api/clients/logo/${clientId}` : undefined,
     lat,
     lng,
     coordinates: lat != null && lng != null && Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : undefined,
@@ -34,6 +38,22 @@ export async function GET() {
           ORDER BY r.endDate DESC
           LIMIT 1
         ) AS current_client_name,
+        (
+          SELECT c.id
+          FROM rentals r
+          INNER JOIN clients c ON r.clientId = c.id
+          WHERE r.locationId = l.id AND CURDATE() BETWEEN r.startDate AND r.endDate
+          ORDER BY r.endDate DESC
+          LIMIT 1
+        ) AS current_client_id,
+        (
+          SELECT IF(c.logo_mime IS NOT NULL AND c.logo_data IS NOT NULL AND LENGTH(c.logo_data) > 0, 1, 0)
+          FROM rentals r
+          INNER JOIN clients c ON r.clientId = c.id
+          WHERE r.locationId = l.id AND CURDATE() BETWEEN r.startDate AND r.endDate
+          ORDER BY r.endDate DESC
+          LIMIT 1
+        ) AS current_client_has_logo,
         (
           SELECT DATE_FORMAT(r.endDate, '%d/%m/%Y')
           FROM rentals r

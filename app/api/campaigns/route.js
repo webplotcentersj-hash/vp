@@ -159,6 +159,12 @@ export async function PUT(request) {
     if (!id) {
       return NextResponse.json({ success: false, message: "ID de campaña requerido" }, { status: 400 });
     }
+    if (!body.name || !body.startDate || !body.endDate) {
+      return NextResponse.json(
+        { success: false, message: "Faltan campos requeridos (nombre, fecha inicio, fecha fin)" },
+        { status: 400 }
+      );
+    }
     conn = await poolCampaigns.getConnection();
     await conn.beginTransaction();
     const product = body.product ?? "";

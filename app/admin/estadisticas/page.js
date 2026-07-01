@@ -452,6 +452,10 @@ export default function EstadisticasPage() {
                     <td className="p-4 text-right text-black tabular-nums">{c.total_conversions ?? 0}</td>
                     <td className="p-4 text-right text-black tabular-nums">{c.num_locations ?? 0}</td>
                     <td className="p-4">
+                      <Link href={`/admin/campanas/${c.id}`} className="font-medium text-orange-600 hover:text-orange-700 hover:underline text-sm">Ver</Link>
+                      {" · "}
+                      <Link href={`/admin/campanas/${c.id}/editar`} className="font-medium text-orange-600 hover:text-orange-700 hover:underline text-sm">Editar</Link>
+                      {" · "}
                       <Link href={`/admin/campanas/${c.id}/metricas`} className="inline-flex items-center font-medium text-orange-600 hover:text-orange-700 hover:underline text-sm">Métricas →</Link>
                     </td>
                   </tr>

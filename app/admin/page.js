@@ -205,6 +205,8 @@ export default function DashboardPage() {
                   <td className="p-3">
                     <Link href={`/admin/campanas/${c.id}`} className="text-orange-600 hover:underline text-sm">Ver</Link>
                     {" · "}
+                    <Link href={`/admin/campanas/${c.id}/editar`} className="text-orange-600 hover:underline text-sm">Editar</Link>
+                    {" · "}
                     <Link href={`/admin/campanas/${c.id}/metricas`} className="text-orange-600 hover:underline text-sm">Métricas</Link>
                   </td>
                 </tr>

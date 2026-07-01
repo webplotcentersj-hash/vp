@@ -1,10 +1,24 @@
 import { NextResponse } from "next/server";
 import pool from "@/lib/db";
+import { parseClientLogoPayload } from "@/lib/clientLogo";
+
+function mapClientRow(row) {
+  const hasLogo = Boolean(row.logo_mime && row.logo_data && Buffer.isBuffer(row.logo_data) && row.logo_data.length > 0);
+  return {
+    id: row.id,
+    name: row.name,
+    email: row.email,
+    phone: row.phone,
+    hasLogo,
+  };
+}
 
 export async function GET() {
   try {
-    const [rows] = await pool.execute("SELECT * FROM clients ORDER BY name ASC");
-    return NextResponse.json(rows);
+    const [rows] = await pool.execute(
+      "SELECT id, name, email, phone, logo_mime, logo_data FROM clients ORDER BY name ASC"
+    );
+    return NextResponse.json(rows.map(mapClientRow));
   } catch (e) {
     console.error("Clients GET:", e);
     return NextResponse.json(
@@ -16,10 +30,19 @@ export async function GET() {
 
 export async function POST(request) {
   try {
-    const { name, email, phone } = await request.json();
+    const body = await request.json();
+    const { name, email, phone } = body;
+    const logoPayload = parseClientLogoPayload(body);
+
     const [result] = await pool.execute(
-      "INSERT INTO clients (name, email, phone) VALUES (?, ?, ?)",
-      [name || "", email || "", phone || ""]
+      "INSERT INTO clients (name, email, phone, logo_mime, logo_data) VALUES (?, ?, ?, ?, ?)",
+      [
+        name || "",
+        email || "",
+        phone || "",
+        logoPayload && !logoPayload.clear ? logoPayload.mimeType : null,
+        logoPayload && !logoPayload.clear ? logoPayload.data : null,
+      ]
     );
     return NextResponse.json({
       success: true,
@@ -28,8 +51,9 @@ export async function POST(request) {
     });
   } catch (e) {
     console.error("Clients POST:", e);
+    const message = e.message?.includes("Logo") ? e.message : "Error al crear cliente.";
     return NextResponse.json(
-      { success: false, message: "Error al crear cliente.", error: e.message },
+      { success: false, message, error: e.message },
       { status: 500 }
     );
   }
@@ -37,18 +61,34 @@ export async function POST(request) {
 
 export async function PUT(request) {
   try {
-    const { id, name, email, phone } = await request.json();
-    await pool.execute("UPDATE clients SET name = ?, email = ?, phone = ? WHERE id = ?", [
-      name,
-      email,
-      phone,
-      id,
-    ]);
+    const body = await request.json();
+    const { id, name, email, phone } = body;
+    const logoPayload = parseClientLogoPayload(body);
+
+    if (logoPayload?.clear) {
+      await pool.execute(
+        "UPDATE clients SET name = ?, email = ?, phone = ?, logo_mime = NULL, logo_data = NULL WHERE id = ?",
+        [name, email, phone, id]
+      );
+    } else if (logoPayload) {
+      await pool.execute(
+        "UPDATE clients SET name = ?, email = ?, phone = ?, logo_mime = ?, logo_data = ? WHERE id = ?",
+        [name, email, phone, logoPayload.mimeType, logoPayload.data, id]
+      );
+    } else {
+      await pool.execute("UPDATE clients SET name = ?, email = ?, phone = ? WHERE id = ?", [
+        name,
+        email,
+        phone,
+        id,
+      ]);
+    }
     return NextResponse.json({ success: true, message: "Cliente actualizado con éxito." });
   } catch (e) {
     console.error("Clients PUT:", e);
+    const message = e.message?.includes("Logo") ? e.message : "Error al actualizar.";
     return NextResponse.json(
-      { success: false, message: "Error al actualizar.", error: e.message },
+      { success: false, message, error: e.message },
       { status: 500 }
     );
   }

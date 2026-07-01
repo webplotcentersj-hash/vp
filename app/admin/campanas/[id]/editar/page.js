@@ -76,15 +76,26 @@ export default function EditarCampanaPage() {
       alert("Selecciona al menos una ubicación.");
       return;
     }
+    const justificationByLoc = new Map(
+      (campaign?.locations || []).map((l) => [Number(l.id ?? l.location_id), (l.justification ?? "").toString()])
+    );
     setLoading(true);
     try {
       await apiCall(`campaigns?id=${id}`, "PUT", {
         ...form,
         id: Number(id),
         budget: form.budget !== "" ? form.budget : 0,
-        locations: form.locations.map((locId) => ({ id: Number(locId), justification: "" })).filter((l) => !Number.isNaN(l.id)),
+        locations: form.locations
+          .map((locId) => ({
+            id: Number(locId),
+            justification: justificationByLoc.get(Number(locId)) ?? "",
+          }))
+          .filter((l) => !Number.isNaN(l.id)),
       });
-      setCampaign((c) => (c ? { ...c, ...form } : null));
+      const campaigns = await apiCall("campaigns");
+      const fresh = Array.isArray(campaigns) ? campaigns.find((x) => String(x.id) === String(id)) : null;
+      if (fresh) setCampaign(fresh);
+      alert("Campaña actualizada correctamente.");
     } catch (err) {
       alert(err.message);
     } finally {

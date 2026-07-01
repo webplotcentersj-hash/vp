@@ -118,13 +118,22 @@ export default function EmbedMapaPage() {
       const addr = (loc.address || "Sin dirección").replace(/</g, "&lt;").replace(/>/g, "&gt;");
       const rentedBySafe = (loc.rentedBy || "").replace(/</g, "&lt;").replace(/>/g, "&gt;");
       const rentedUntilSafe = (loc.rentedUntil || "").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      const logoUrlSafe = loc.rentedByLogo
+        ? String(loc.rentedByLogo).replace(/"/g, "&quot;").replace(/</g, "&lt;")
+        : "";
       const untilBlock =
         !isAvailable && rentedUntilSafe
           ? `<div class="embed-popup-until">Hasta <strong>${rentedUntilSafe}</strong></div>`
           : "";
       const renterBlock =
         !isAvailable && rentedBySafe
-          ? `<div class="embed-popup-renter"><span class="embed-popup-renter-label">Alquila</span><span class="embed-popup-renter-name">${rentedBySafe}</span></div>`
+          ? `<div class="embed-popup-renter">
+              ${logoUrlSafe ? `<img class="embed-popup-renter-logo" src="${logoUrlSafe}" alt="" loading="lazy" />` : ""}
+              <div class="embed-popup-renter-info">
+                <span class="embed-popup-renter-label">Alquila</span>
+                <span class="embed-popup-renter-name">${rentedBySafe}</span>
+              </div>
+            </div>`
           : !isAvailable
             ? `<div class="embed-popup-renter muted"><span>Cliente sin dato</span></div>`
             : "";
@@ -454,14 +463,29 @@ export default function EmbedMapaPage() {
         .embed-popup-renter {
           display: flex;
           align-items: center;
-          gap: 8px;
+          gap: 10px;
           font-size: 11px;
           line-height: 1.25;
           margin-bottom: 4px;
-          padding: 5px 8px;
+          padding: 6px 8px;
           background: linear-gradient(90deg, #fef3c7 0%, #fffbeb 100%);
           border-radius: 8px;
           border: 1px solid #fcd34d;
+        }
+        .embed-popup-renter-logo {
+          width: 36px;
+          height: 36px;
+          border-radius: 8px;
+          object-fit: contain;
+          background: #fff;
+          border: 1px solid rgba(0,0,0,0.08);
+          flex-shrink: 0;
+        }
+        .embed-popup-renter-info {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          min-width: 0;
         }
         .embed-popup-renter-label {
           flex-shrink: 0;
