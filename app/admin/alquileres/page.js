@@ -1,10 +1,21 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import dynamic from "next/dynamic";
 import { apiCall } from "@/lib/api";
+
+const MapLocationPicker = dynamic(() => import("@/components/MapLocationPicker"), { ssr: false });
 
 const DAYS_WARNING = 30;
 const DAYS_URGENT = 7;
+
+const EMPTY_NEW_FORM = {
+  clientId: "",
+  startDate: "",
+  endDate: "",
+  locationIds: [],
+  locationSearch: "",
+};
 
 function getDaysUntil(endDate) {
   if (!endDate) return null;
@@ -29,8 +40,9 @@ export default function AlquileresPage() {
   const [locations, setLocations] = useState([]);
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [modal, setModal] = useState(null);
-  const [form, setForm] = useState({ locationId: "", clientId: "", startDate: "", endDate: "" });
+  const [form, setForm] = useState(EMPTY_NEW_FORM);
 
   const stats = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10);
@@ -50,6 +62,25 @@ export default function AlquileresPage() {
     });
     return { activos, porVencer, urgentes, vencidos };
   }, [rentals]);
+
+  const availableLocations = useMemo(
+    () => locations.filter((l) => l.status === "available"),
+    [locations]
+  );
+
+  const filteredAvailableLocations = useMemo(() => {
+    const q = (form.locationSearch || "").trim().toLowerCase();
+    if (!q) return availableLocations;
+    return availableLocations.filter(
+      (l) =>
+        String(l.id).includes(q) ||
+        (l.address || "").toLowerCase().includes(q) ||
+        (l.reference || "").toLowerCase().includes(q)
+    );
+  }, [availableLocations, form.locationSearch]);
+
+  const canPickLocations = Boolean(form.clientId && form.startDate && form.endDate && !modal?.id);
+  const datesInvalid = form.startDate && form.endDate && form.endDate < form.startDate;
 
   async function load() {
     try {
@@ -72,18 +103,83 @@ export default function AlquileresPage() {
     load();
   }, []);
 
+  function openNew() {
+    setForm({
+      ...EMPTY_NEW_FORM,
+      clientId: clients[0]?.id != null ? String(clients[0].id) : "",
+    });
+    setModal({});
+  }
+
+  function openEdit(r) {
+    setForm({
+      clientId: String(r.clientId),
+      startDate: r.startDate || "",
+      endDate: r.endDate || "",
+      locationIds: [Number(r.locationId)],
+      locationSearch: "",
+    });
+    setModal({ id: r.id, locationId: r.locationId });
+  }
+
+  function toggleLocation(id) {
+    const numId = Number(id);
+    setForm((f) => {
+      const ids = f.locationIds.map(Number);
+      if (ids.includes(numId)) {
+        return { ...f, locationIds: ids.filter((x) => x !== numId) };
+      }
+      return { ...f, locationIds: [...ids, numId] };
+    });
+  }
+
+  function selectAllFiltered() {
+    const ids = filteredAvailableLocations.map((l) => Number(l.id));
+    setForm((f) => ({
+      ...f,
+      locationIds: [...new Set([...f.locationIds.map(Number), ...ids])],
+    }));
+  }
+
+  function clearLocations() {
+    setForm((f) => ({ ...f, locationIds: [] }));
+  }
+
   async function save(e) {
     e.preventDefault();
+    if (datesInvalid) {
+      alert("La fecha de fin debe ser posterior o igual a la de inicio.");
+      return;
+    }
+    if (!modal?.id && form.locationIds.length === 0) {
+      alert("Seleccioná al menos una ubicación disponible.");
+      return;
+    }
+
+    setSaving(true);
     try {
       if (modal?.id) {
-        await apiCall("rentals", "PUT", { ...form, id: modal.id });
+        await apiCall("rentals", "PUT", {
+          id: modal.id,
+          locationId: modal.locationId,
+          clientId: Number(form.clientId),
+          startDate: form.startDate,
+          endDate: form.endDate,
+        });
       } else {
-        await apiCall("rentals", "POST", form);
+        await apiCall("rentals", "POST", {
+          clientId: Number(form.clientId),
+          startDate: form.startDate,
+          endDate: form.endDate,
+          locationIds: form.locationIds.map(Number),
+        });
       }
       setModal(null);
       load();
     } catch (err) {
       alert(err.message);
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -99,17 +195,15 @@ export default function AlquileresPage() {
 
   if (loading) return <div className="py-12 text-black">Cargando...</div>;
 
-  const availableLocations = locations.filter((l) => l.status === "available" || (modal?.id && form.locationId === l.id));
+  const isEdit = Boolean(modal?.id);
+  const editLocation = isEdit ? locations.find((l) => l.id === modal.locationId) : null;
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-2xl font-bold text-black">Alquileres</h1>
         <button
-          onClick={() => {
-            setForm({ locationId: availableLocations[0]?.id ?? "", clientId: clients[0]?.id ?? "", startDate: "", endDate: "" });
-            setModal({});
-          }}
+          onClick={openNew}
           className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
         >
           Nuevo alquiler
@@ -204,7 +298,7 @@ export default function AlquileresPage() {
                   </span>
                 </td>
                 <td className="p-3">
-                  <button onClick={() => { setForm({ locationId: r.locationId, clientId: r.clientId, startDate: r.startDate, endDate: r.endDate }); setModal({ id: r.id }); }} className="text-blue-600 hover:underline mr-2">Editar</button>
+                  <button onClick={() => openEdit(r)} className="text-blue-600 hover:underline mr-2">Editar</button>
                   <button onClick={() => endRental(r.id)} className="text-amber-600 hover:underline">Finalizar</button>
                 </td>
               </tr>
@@ -216,38 +310,145 @@ export default function AlquileresPage() {
 
       {modal !== null && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
-            <h2 className="text-xl font-bold mb-4">{modal.id ? "Editar" : "Nuevo"} alquiler</h2>
+          <div className={`bg-white rounded-xl shadow-xl w-full p-6 max-h-[92vh] overflow-y-auto ${isEdit ? "max-w-md" : "max-w-2xl"}`}>
+            <h2 className="text-xl font-bold mb-4">{isEdit ? "Editar" : "Nuevo"} alquiler</h2>
             <form onSubmit={save} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-black mb-1">Ubicación</label>
-                <select required value={form.locationId} onChange={(e) => setForm((f) => ({ ...f, locationId: e.target.value }))} className="w-full px-3 py-2 border rounded-lg">
-                  {availableLocations.map((l) => (
-                    <option key={l.id} value={l.id}>N° {l.id} - {l.address}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
                 <label className="block text-sm font-medium text-black mb-1">Cliente</label>
-                <select required value={form.clientId} onChange={(e) => setForm((f) => ({ ...f, clientId: e.target.value }))} className="w-full px-3 py-2 border rounded-lg">
+                <select
+                  required
+                  value={form.clientId}
+                  onChange={(e) => setForm((f) => ({ ...f, clientId: e.target.value }))}
+                  className="w-full px-3 py-2 border rounded-lg"
+                >
+                  <option value="">Seleccionar cliente…</option>
                   {clients.map((c) => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
                 </select>
               </div>
+
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-sm font-medium text-black mb-1">Desde</label>
-                  <input required type="date" value={form.startDate} onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))} className="w-full px-3 py-2 border rounded-lg" />
+                  <input
+                    required
+                    type="date"
+                    value={form.startDate}
+                    onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))}
+                    className="w-full px-3 py-2 border rounded-lg"
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-black mb-1">Hasta</label>
-                  <input required type="date" value={form.endDate} onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))} className="w-full px-3 py-2 border rounded-lg" />
+                  <input
+                    required
+                    type="date"
+                    value={form.endDate}
+                    min={form.startDate || undefined}
+                    onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))}
+                    className="w-full px-3 py-2 border rounded-lg"
+                  />
                 </div>
               </div>
+              {datesInvalid && (
+                <p className="text-sm text-red-600">La fecha de fin debe ser posterior o igual a la de inicio.</p>
+              )}
+
+              {isEdit ? (
+                <div>
+                  <label className="block text-sm font-medium text-black mb-1">Ubicación</label>
+                  <div className="px-3 py-2 border rounded-lg bg-stone-50 text-stone-700">
+                    N° {modal.locationId} — {editLocation?.address || "—"}
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                    <label className="block text-sm font-medium text-black">
+                      Ubicaciones disponibles
+                      {form.locationIds.length > 0 && (
+                        <span className="ml-2 text-orange-600 font-semibold">
+                          ({form.locationIds.length} seleccionadas)
+                        </span>
+                      )}
+                    </label>
+                  </div>
+
+                  {!canPickLocations ? (
+                    <p className="text-sm text-stone-500 px-3 py-4 border border-dashed border-stone-200 rounded-lg bg-stone-50">
+                      Elegí cliente y fechas para ver las ubicaciones disponibles.
+                    </p>
+                  ) : availableLocations.length === 0 ? (
+                    <p className="text-sm text-stone-500 px-3 py-4 border border-dashed border-stone-200 rounded-lg bg-stone-50">
+                      No hay ubicaciones disponibles en este momento.
+                    </p>
+                  ) : (
+                    <>
+                      <p className="text-xs text-stone-600 mb-2">
+                        Tocá los chupetes en el mapa para seleccionarlos. Los marcados quedan en verde.
+                      </p>
+                      <div className="flex flex-wrap gap-2 mb-2">
+                        <input
+                          type="search"
+                          placeholder="Buscar por N° o dirección…"
+                          value={form.locationSearch}
+                          onChange={(e) => setForm((f) => ({ ...f, locationSearch: e.target.value }))}
+                          className="flex-1 min-w-[160px] px-3 py-2 border rounded-lg text-sm"
+                        />
+                        {filteredAvailableLocations.length > 0 && (
+                          <>
+                            <button type="button" onClick={selectAllFiltered} className="px-3 py-2 text-sm bg-stone-100 hover:bg-stone-200 rounded-lg">
+                              Marcar visibles
+                            </button>
+                            <button type="button" onClick={clearLocations} className="px-3 py-2 text-sm bg-stone-100 hover:bg-stone-200 rounded-lg">
+                              Limpiar
+                            </button>
+                          </>
+                        )}
+                      </div>
+                      <MapLocationPicker
+                        locations={filteredAvailableLocations}
+                        selectedIds={form.locationIds}
+                        onToggle={toggleLocation}
+                        height="340px"
+                      />
+                      {form.locationIds.length > 0 && (
+                        <p className="text-xs text-stone-600 mt-2">
+                          Seleccionados:{" "}
+                          {[...form.locationIds]
+                            .map(Number)
+                            .sort((a, b) => a - b)
+                            .map((id) => `N° ${id}`)
+                            .join(", ")}
+                        </p>
+                      )}
+                      <p className="text-xs text-stone-500 mt-1">
+                        {availableLocations.length} disponibles en total
+                        {form.locationSearch.trim() ? ` · ${filteredAvailableLocations.length} en la búsqueda` : ""}
+                      </p>
+                    </>
+                  )}
+                </div>
+              )}
+
               <div className="flex gap-2 pt-4">
-                <button type="button" onClick={() => setModal(null)} className="px-4 py-2 bg-stone-200 rounded-lg">Cancelar</button>
-                <button type="submit" className="px-4 py-2 bg-orange-600 text-white rounded-lg">Guardar</button>
+                <button type="button" onClick={() => setModal(null)} className="px-4 py-2 bg-stone-200 rounded-lg">
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving || datesInvalid || (!isEdit && form.locationIds.length === 0)}
+                  className="px-4 py-2 bg-orange-600 text-white rounded-lg disabled:opacity-50"
+                >
+                  {saving
+                    ? "Guardando…"
+                    : isEdit
+                      ? "Guardar"
+                      : form.locationIds.length <= 1
+                        ? "Crear alquiler"
+                        : `Crear ${form.locationIds.length} alquileres`}
+                </button>
               </div>
             </form>
           </div>

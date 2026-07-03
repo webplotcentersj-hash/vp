@@ -45,6 +45,8 @@ export default function MapLocationPicker({ locations = [], selectedIds = [], on
     };
   }, []);
 
+  const selectedSet = new Set((selectedIds || []).map(Number));
+
   useEffect(() => {
     if (!mapReady || !mapRef.current || !LRef.current) return;
     const map = mapRef.current;
@@ -61,7 +63,7 @@ export default function MapLocationPicker({ locations = [], selectedIds = [], on
       const longitude = getLng(loc);
       if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return;
       bounds.push([latitude, longitude]);
-      const isSelected = selectedIds.includes(loc.id);
+      const isSelected = selectedSet.has(Number(loc.id));
       const icon = L.divIcon({
         className: "custom-marker",
         html: `<span class="marker-pin ${isSelected ? "selected" : ""}">${loc.id}</span>`,
@@ -82,14 +84,14 @@ export default function MapLocationPicker({ locations = [], selectedIds = [], on
     if (bounds.length > 0) {
       map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
     }
-  }, [mapReady, locations]);
+  }, [mapReady, locations, selectedIds]);
 
   useEffect(() => {
     Object.keys(markersRef.current).forEach((id) => {
       const marker = markersRef.current[id];
       const el = marker?.getElement?.();
       const pin = el?.querySelector?.(".marker-pin");
-      if (pin) pin.classList.toggle("selected", selectedIds.includes(Number(id)));
+      if (pin) pin.classList.toggle("selected", selectedSet.has(Number(id)));
     });
   }, [selectedIds]);
 

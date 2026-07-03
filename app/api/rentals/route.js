@@ -31,18 +31,61 @@ export async function POST(request) {
   let conn;
   try {
     const body = await request.json();
+    const { clientId, startDate, endDate } = body;
+    if (!clientId || !startDate || !endDate) {
+      return NextResponse.json(
+        { success: false, message: "Cliente y fechas son obligatorios." },
+        { status: 400 }
+      );
+    }
+
+    const locationIds = Array.isArray(body.locationIds)
+      ? [...new Set(body.locationIds.map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0))]
+      : body.locationId != null
+        ? [Number(body.locationId)]
+        : [];
+
+    if (locationIds.length === 0) {
+      return NextResponse.json(
+        { success: false, message: "Seleccioná al menos una ubicación." },
+        { status: 400 }
+      );
+    }
+
     conn = await pool.getConnection();
     await conn.beginTransaction();
-    const [ins] = await conn.execute(
-      "INSERT INTO rentals (locationId, clientId, startDate, endDate) VALUES (?, ?, ?, ?)",
-      [body.locationId, body.clientId, body.startDate, body.endDate]
+
+    const ph = locationIds.map(() => "?").join(",");
+    const [availableRows] = await conn.execute(
+      `SELECT id FROM locations WHERE id IN (${ph}) AND status = 'available'`,
+      locationIds
     );
-    await conn.execute("UPDATE locations SET status = 'rented' WHERE id = ?", [body.locationId]);
+    const availableIds = (availableRows || []).map((r) => Number(r.id));
+    if (availableIds.length !== locationIds.length) {
+      await conn.rollback();
+      return NextResponse.json(
+        { success: false, message: "Una o más ubicaciones ya no están disponibles." },
+        { status: 400 }
+      );
+    }
+
+    const createdIds = [];
+    for (const locationId of locationIds) {
+      const [ins] = await conn.execute(
+        "INSERT INTO rentals (locationId, clientId, startDate, endDate) VALUES (?, ?, ?, ?)",
+        [locationId, clientId, startDate, endDate]
+      );
+      await conn.execute("UPDATE locations SET status = 'rented' WHERE id = ?", [locationId]);
+      createdIds.push(ins.insertId);
+    }
+
     await conn.commit();
+    const count = createdIds.length;
     return NextResponse.json({
       success: true,
-      message: "Alquiler creado con éxito.",
-      id: ins.insertId,
+      message: count === 1 ? "Alquiler creado con éxito." : `${count} alquileres creados con éxito.`,
+      id: createdIds[0],
+      ids: createdIds,
     });
   } catch (e) {
     conn?.rollback?.();
