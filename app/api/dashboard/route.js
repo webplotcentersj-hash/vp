@@ -1,21 +1,16 @@
 import { NextResponse } from "next/server";
 import pool from "@/lib/db";
+import { syncRentals } from "@/lib/rentalSync";
 
 export async function GET() {
   let conn;
   try {
     conn = await pool.getConnection();
-    const today = new Date().toISOString().slice(0, 10);
-    const thirtyDays = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    await conn.beginTransaction();
 
-    // Mantenimiento: ubicaciones con alquileres vencidos -> available, borrar rentals vencidos
-    const [expired] = await conn.execute("SELECT locationId FROM rentals WHERE endDate < CURDATE()");
-    if (expired.length > 0) {
-      const ids = expired.map((r) => r.locationId);
-      const placeholders = ids.map(() => "?").join(",");
-      await conn.execute(`UPDATE locations SET status = 'available' WHERE id IN (${placeholders})`, ids);
-      await conn.execute("DELETE FROM rentals WHERE endDate < CURDATE()");
-    }
+    await syncRentals(conn);
+    await conn.commit();
+    await conn.beginTransaction();
 
     const data = {};
     const [[{ count: totalLoc }]] = await conn.execute("SELECT COUNT(*) as count FROM locations");
@@ -23,22 +18,23 @@ export async function GET() {
     data.totalUbicaciones = Number(totalLoc);
     data.totalClientes = Number(totalCli);
 
-    const [rentals] = await conn.execute("SELECT endDate FROM rentals");
-    let active = 0,
-      upcoming = 0;
-    for (const r of rentals) {
-      if (r.endDate >= today) {
-        active++;
-        if (r.endDate <= thirtyDays) upcoming++;
-      }
-    }
-    data.chupetesActivos = active;
-    data.proximosAVencer = upcoming;
-    data.totalChupetes = data.totalUbicaciones;
-    const [[{ count: rentedCount }]] = await conn.execute(
-      "SELECT COUNT(*) as count FROM locations WHERE status = 'rented'"
+    const [[{ count: activeRentals }]] = await conn.execute(
+      "SELECT COUNT(DISTINCT locationId) AS count FROM rentals WHERE CURDATE() BETWEEN startDate AND endDate"
     );
-    data.chupetesVencidos = Math.max(0, Number(rentedCount) - active);
+    data.chupetesActivos = Number(activeRentals);
+    data.totalChupetes = data.totalUbicaciones;
+
+    const [upcomingRows] = await conn.execute(`
+      SELECT endDate FROM rentals
+      WHERE CURDATE() BETWEEN startDate AND endDate
+        AND endDate BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 30 DAY)
+    `);
+    data.proximosAVencer = upcomingRows.length;
+
+    const [[{ count: rentedCount }]] = await conn.execute(
+      "SELECT COUNT(*) AS count FROM locations WHERE status = 'rented'"
+    );
+    data.chupetesVencidos = Math.max(0, Number(rentedCount) - Number(activeRentals));
 
     const [vencimientosProximos] = await conn.execute(`
       SELECT c.name as clientName, l.address as locationAddress, r.endDate, 'Por Vencer' as status
@@ -62,8 +58,10 @@ export async function GET() {
     `);
     data.visualizadorVencimientos = visualizador;
 
+    await conn.commit();
     return NextResponse.json(data);
   } catch (e) {
+    conn?.rollback?.();
     console.error("Dashboard error:", e);
     return NextResponse.json(
       { success: false, message: "Error al obtener el dashboard.", error: e.message },

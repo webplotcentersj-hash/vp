@@ -35,14 +35,39 @@ function getExpiryStatus(endDate) {
   return "ok";
 }
 
+function rentalOverlapsRange(rental, startDate, endDate, locationId) {
+  if (Number(rental.locationId) !== Number(locationId)) return false;
+  return rental.startDate <= endDate && rental.endDate >= startDate;
+}
+
 export default function AlquileresPage() {
   const [rentals, setRentals] = useState([]);
   const [locations, setLocations] = useState([]);
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [listScope, setListScope] = useState("active");
   const [modal, setModal] = useState(null);
   const [form, setForm] = useState(EMPTY_NEW_FORM);
+
+  const displayRentals = useMemo(() => {
+    const byLocation = new Map();
+    for (const r of rentals) {
+      const key = Number(r.locationId);
+      const prev = byLocation.get(key);
+      if (!prev) {
+        byLocation.set(key, r);
+        continue;
+      }
+      if (r.endDate > prev.endDate || (r.endDate === prev.endDate && r.id > prev.id)) {
+        byLocation.set(key, r);
+      }
+    }
+    return [...byLocation.values()].sort((a, b) => {
+      if (a.endDate !== b.endDate) return String(a.endDate).localeCompare(String(b.endDate));
+      return Number(a.locationId) - Number(b.locationId);
+    });
+  }, [rentals]);
 
   const stats = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10);
@@ -50,7 +75,7 @@ export default function AlquileresPage() {
     let porVencer = 0;
     let urgentes = 0;
     let vencidos = 0;
-    rentals.forEach((r) => {
+    displayRentals.forEach((r) => {
       if (!r.endDate) return;
       if (r.endDate < today) vencidos++;
       else {
@@ -61,31 +86,34 @@ export default function AlquileresPage() {
       }
     });
     return { activos, porVencer, urgentes, vencidos };
-  }, [rentals]);
+  }, [displayRentals]);
 
-  const availableLocations = useMemo(
-    () => locations.filter((l) => l.status === "available"),
-    [locations]
-  );
+  const selectableLocations = useMemo(() => {
+    if (!form.startDate || !form.endDate || form.endDate < form.startDate) return [];
+    return locations.filter(
+      (loc) =>
+        !displayRentals.some((r) => rentalOverlapsRange(r, form.startDate, form.endDate, loc.id))
+    );
+  }, [locations, displayRentals, form.startDate, form.endDate]);
 
   const filteredAvailableLocations = useMemo(() => {
     const q = (form.locationSearch || "").trim().toLowerCase();
-    if (!q) return availableLocations;
-    return availableLocations.filter(
+    if (!q) return selectableLocations;
+    return selectableLocations.filter(
       (l) =>
         String(l.id).includes(q) ||
         (l.address || "").toLowerCase().includes(q) ||
         (l.reference || "").toLowerCase().includes(q)
     );
-  }, [availableLocations, form.locationSearch]);
+  }, [selectableLocations, form.locationSearch]);
 
   const canPickLocations = Boolean(form.clientId && form.startDate && form.endDate && !modal?.id);
   const datesInvalid = form.startDate && form.endDate && form.endDate < form.startDate;
 
-  async function load() {
+  async function load(scope = listScope) {
     try {
       const [r, locs, cl] = await Promise.all([
-        apiCall("rentals"),
+        apiCall(`rentals?scope=${scope}`),
         apiCall("locations"),
         apiCall("clients"),
       ]);
@@ -100,8 +128,8 @@ export default function AlquileresPage() {
   }
 
   useEffect(() => {
-    load();
-  }, []);
+    load(listScope);
+  }, [listScope]);
 
   function openNew() {
     setForm({
@@ -175,7 +203,7 @@ export default function AlquileresPage() {
         });
       }
       setModal(null);
-      load();
+      load(listScope);
     } catch (err) {
       alert(err.message);
     } finally {
@@ -187,7 +215,7 @@ export default function AlquileresPage() {
     if (!confirm("¿Finalizar este alquiler? La ubicación quedará disponible.")) return;
     try {
       await apiCall("rentals", "PUT", { id, action: "end" });
-      load();
+      load(listScope);
     } catch (err) {
       alert(err.message);
     }
@@ -229,9 +257,31 @@ export default function AlquileresPage() {
         </div>
         <div className="p-5 rounded-2xl border-2 border-stone-200 bg-gradient-to-br from-stone-50 to-stone-100">
           <p className="text-sm font-semibold text-stone-600">Total</p>
-          <p className="text-2xl font-black text-black mt-1">{rentals.length}</p>
-          <p className="text-xs text-stone-500 mt-0.5">Todos los alquileres</p>
+          <p className="text-2xl font-black text-black mt-1">{displayRentals.length}</p>
+          <p className="text-xs text-stone-500 mt-0.5">En esta vista</p>
         </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="text-sm text-stone-600">Ver:</span>
+        {[
+          { id: "active", label: "Activos" },
+          { id: "all", label: "Todos" },
+          { id: "expired", label: "Vencidos" },
+        ].map(({ id, label }) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setListScope(id)}
+            className={`px-3 py-1.5 rounded-lg text-sm border ${
+              listScope === id
+                ? "bg-orange-600 text-white border-orange-600"
+                : "bg-white text-stone-700 border-stone-200 hover:bg-stone-50"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
       <div className="flex flex-wrap items-center gap-4 text-sm text-stone-600">
@@ -262,7 +312,7 @@ export default function AlquileresPage() {
             </tr>
           </thead>
           <tbody>
-            {rentals.map((r) => {
+            {displayRentals.map((r) => {
               const status = getExpiryStatus(r.endDate);
               const rowClass =
                 status === "urgente"
@@ -379,9 +429,9 @@ export default function AlquileresPage() {
                     <p className="text-sm text-stone-500 px-3 py-4 border border-dashed border-stone-200 rounded-lg bg-stone-50">
                       Elegí cliente y fechas para ver las ubicaciones disponibles.
                     </p>
-                  ) : availableLocations.length === 0 ? (
+                  ) : selectableLocations.length === 0 ? (
                     <p className="text-sm text-stone-500 px-3 py-4 border border-dashed border-stone-200 rounded-lg bg-stone-50">
-                      No hay ubicaciones disponibles en este momento.
+                      No hay ubicaciones libres en ese rango de fechas.
                     </p>
                   ) : (
                     <>
@@ -424,7 +474,7 @@ export default function AlquileresPage() {
                         </p>
                       )}
                       <p className="text-xs text-stone-500 mt-1">
-                        {availableLocations.length} disponibles en total
+                        {selectableLocations.length} libres en el rango elegido
                         {form.locationSearch.trim() ? ` · ${filteredAvailableLocations.length} en la búsqueda` : ""}
                       </p>
                     </>

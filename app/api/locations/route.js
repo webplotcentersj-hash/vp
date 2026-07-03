@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import pool from "@/lib/db";
+import { syncRentals } from "@/lib/rentalSync";
 
 function formatLocation(row) {
   const lat = row.lat != null ? Number(row.lat) : null;
@@ -10,12 +11,13 @@ function formatLocation(row) {
     rentedUntilRaw != null && String(rentedUntilRaw).trim() ? String(rentedUntilRaw).trim() : undefined;
   const clientId = row.current_client_id != null ? Number(row.current_client_id) : null;
   const hasClientLogo = Number(row.current_client_has_logo) === 1;
+  const hasActiveRental = clientId != null;
   return {
     id: Number(row.id),
     address: row.address ?? "",
     reference: row.reference ?? "",
     measurements: row.measurements ?? "",
-    status: row.status ?? "available",
+    status: hasActiveRental ? "rented" : "available",
     rentedBy: rentedBy || undefined,
     rentedUntil: rentedUntil || undefined,
     rentedByLogo:
@@ -27,8 +29,14 @@ function formatLocation(row) {
 }
 
 export async function GET() {
+  let conn;
   try {
-    const [rows] = await pool.execute(`
+    conn = await pool.getConnection();
+    await conn.beginTransaction();
+    await syncRentals(conn);
+    await conn.commit();
+
+    const [rows] = await conn.execute(`
       SELECT l.id, l.address, l.reference, l.measurements, l.lat, l.lng, l.status,
         (
           SELECT c.name
@@ -66,11 +74,14 @@ export async function GET() {
     `);
     return NextResponse.json(rows.map(formatLocation));
   } catch (e) {
+    conn?.rollback?.();
     console.error("Locations GET:", e);
     return NextResponse.json(
       { success: false, message: "Error al obtener ubicaciones.", error: e.message },
       { status: 500 }
     );
+  } finally {
+    conn?.release?.();
   }
 }
 
