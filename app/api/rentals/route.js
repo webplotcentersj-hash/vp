@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import pool from "@/lib/db";
+import { todayIso, toIsoDateString } from "@/lib/dateUtils";
 import { findConflictingLocationIds, syncRentals, withRentalSync } from "@/lib/rentalSync";
 
 function mapRentalRow(r) {
-  const today = new Date().toISOString().slice(0, 10);
-  const endDate = r.endDate ? String(r.endDate).slice(0, 10) : "";
-  const startDate = r.startDate ? String(r.startDate).slice(0, 10) : "";
+  const today = todayIso();
+  const endDate = toIsoDateString(r.endDate);
+  const startDate = toIsoDateString(r.startDate);
   let rentalStatus = "activo";
   if (endDate && endDate < today) rentalStatus = "vencido";
   else if (startDate && startDate > today) rentalStatus = "futuro";

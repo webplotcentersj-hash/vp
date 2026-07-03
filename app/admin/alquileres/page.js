@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import dynamic from "next/dynamic";
 import { apiCall } from "@/lib/api";
+import { daysUntilIso, formatDateEs, todayIso, toIsoDateString } from "@/lib/dateUtils";
 
 const MapLocationPicker = dynamic(() => import("@/components/MapLocationPicker"), { ssr: false });
 
@@ -18,12 +19,7 @@ const EMPTY_NEW_FORM = {
 };
 
 function getDaysUntil(endDate) {
-  if (!endDate) return null;
-  const end = new Date(endDate);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  end.setHours(0, 0, 0, 0);
-  return Math.ceil((end - today) / (24 * 60 * 60 * 1000));
+  return daysUntilIso(endDate);
 }
 
 function getExpiryStatus(endDate) {
@@ -37,7 +33,9 @@ function getExpiryStatus(endDate) {
 
 function rentalOverlapsRange(rental, startDate, endDate, locationId) {
   if (Number(rental.locationId) !== Number(locationId)) return false;
-  return rental.startDate <= endDate && rental.endDate >= startDate;
+  const rStart = toIsoDateString(rental.startDate);
+  const rEnd = toIsoDateString(rental.endDate);
+  return rStart <= endDate && rEnd >= startDate;
 }
 
 export default function AlquileresPage() {
@@ -70,14 +68,15 @@ export default function AlquileresPage() {
   }, [rentals]);
 
   const stats = useMemo(() => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayIso();
     let activos = 0;
     let porVencer = 0;
     let urgentes = 0;
     let vencidos = 0;
     displayRentals.forEach((r) => {
-      if (!r.endDate) return;
-      if (r.endDate < today) vencidos++;
+      const end = toIsoDateString(r.endDate);
+      if (!end) return;
+      if (end < today) vencidos++;
       else {
         activos++;
         const days = getDaysUntil(r.endDate);
@@ -142,8 +141,8 @@ export default function AlquileresPage() {
   function openEdit(r) {
     setForm({
       clientId: String(r.clientId),
-      startDate: r.startDate || "",
-      endDate: r.endDate || "",
+      startDate: toIsoDateString(r.startDate) || "",
+      endDate: toIsoDateString(r.endDate) || "",
       locationIds: [Number(r.locationId)],
       locationSearch: "",
     });
@@ -336,10 +335,10 @@ export default function AlquileresPage() {
                 <td className="p-3 font-medium">{r.locationId}</td>
                 <td className="p-3">{r.locationAddress}</td>
                 <td className="p-3">{r.clientName}</td>
-                <td className="p-3">{r.startDate}</td>
+                <td className="p-3">{formatDateEs(r.startDate)}</td>
                 <td className="p-3">
                   <span className="flex items-center gap-2">
-                    {r.endDate}
+                    {formatDateEs(r.endDate)}
                     {badge && (
                       <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-bold ${badge.class}`}>
                         {badge.text}
